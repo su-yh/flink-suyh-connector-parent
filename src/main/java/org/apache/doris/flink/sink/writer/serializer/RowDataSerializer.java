@@ -17,23 +17,17 @@
 
 package org.apache.doris.flink.sink.writer.serializer;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.utils.TypeConversions;
-import org.apache.flink.types.RowKind;
-import org.apache.flink.util.Preconditions;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.doris.flink.deserialization.converter.DorisRowConverter;
 import org.apache.doris.flink.sink.EscapeHandler;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.types.RowKind;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -41,7 +35,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.StringJoiner;
 
-import static org.apache.doris.flink.sink.writer.LoadConstants.ARROW;
 import static org.apache.doris.flink.sink.writer.LoadConstants.CSV;
 import static org.apache.doris.flink.sink.writer.LoadConstants.DORIS_DELETE_SIGN;
 import static org.apache.doris.flink.sink.writer.LoadConstants.JSON;
@@ -57,7 +50,6 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     private final String fieldDelimiter;
     private final boolean enableDelete;
     private final DorisRowConverter rowConverter;
-    private ArrowSerializer arrowSerializer;
     ByteArrayOutputStream outputStream;
     private final int arrowBatchCnt = 1000;
     private int arrowWriteCnt = 0;
@@ -82,17 +74,6 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
 
     @Override
     public void initial() {
-        if (ARROW.equals(type)) {
-            LogicalType[] logicalTypes = TypeConversions.fromDataToLogicalType(dataTypes);
-            RowType rowType = RowType.of(logicalTypes, fieldNames);
-            arrowSerializer = new ArrowSerializer(rowType, rowType);
-            outputStream = new ByteArrayOutputStream();
-            try {
-                arrowSerializer.open(new ByteArrayInputStream(new byte[0]), outputStream);
-            } catch (Exception e) {
-                throw new RuntimeException("failed to open arrow serializer:", e);
-            }
-        }
     }
 
     @Override
@@ -103,13 +84,6 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
             valString = buildJsonString(record, maxIndex);
         } else if (CSV.equals(type)) {
             valString = buildCSVString(record, maxIndex);
-        } else if (ARROW.equals(type)) {
-            arrowWriteCnt += 1;
-            arrowSerializer.write(record);
-            if (arrowWriteCnt < arrowBatchCnt) {
-                return DorisRecord.empty;
-            }
-            return arrowToDorisRecord();
         } else {
             throw new IllegalArgumentException("The type " + type + " is not supported!");
         }
@@ -120,8 +94,6 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
     public DorisRecord flush() {
         if (JSON.equals(type) || CSV.equals(type)) {
             return DorisRecord.empty;
-        } else if (ARROW.equals(type)) {
-            return arrowToDorisRecord();
         } else {
             throw new IllegalArgumentException("The type " + type + " is not supported!");
         }
@@ -129,26 +101,6 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
 
     @Override
     public void close() throws Exception {
-        if (ARROW.equals(type)) {
-            arrowSerializer.close();
-        }
-    }
-
-    public DorisRecord arrowToDorisRecord() {
-        if (arrowWriteCnt == 0) {
-            return DorisRecord.empty;
-        }
-        arrowWriteCnt = 0;
-        try {
-            arrowSerializer.finishCurrentBatch();
-            byte[] bytes = outputStream.toByteArray();
-            outputStream.reset();
-            arrowSerializer.resetWriter();
-            return DorisRecord.of(bytes);
-        } catch (Exception e) {
-            LOG.error("Failed to convert arrow batch:", e);
-        }
-        return DorisRecord.empty;
     }
 
     public String buildJsonString(RowData record, int maxIndex) throws IOException {
@@ -231,13 +183,9 @@ public class RowDataSerializer implements DorisRecordSerializer<RowData> {
         public RowDataSerializer build() {
             Preconditions.checkState(
                     CSV.equals(type) && fieldDelimiter != null
-                            || JSON.equals(type)
-                            || ARROW.equals(type));
+                            || JSON.equals(type));
             Preconditions.checkNotNull(dataTypes);
             Preconditions.checkNotNull(fieldNames);
-            if (ARROW.equals(type)) {
-                Preconditions.checkArgument(!deletable);
-            }
             return new RowDataSerializer(fieldNames, dataTypes, type, fieldDelimiter, deletable);
         }
     }

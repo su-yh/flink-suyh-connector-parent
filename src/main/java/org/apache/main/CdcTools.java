@@ -15,25 +15,21 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package org.apache.doris.flink.tools.cdc;
+package org.apache.main;
 
+import org.apache.doris.flink.tools.cdc.DatabaseSync;
+import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
+import org.apache.doris.flink.tools.cdc.DorisTableConfig;
+import org.apache.doris.flink.tools.cdc.SourceConnector;
+import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.streaming.api.CheckpointingMode;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
-
-import org.apache.doris.flink.tools.cdc.db2.Db2DatabaseSync;
-import org.apache.doris.flink.tools.cdc.mongodb.MongoDBDatabaseSync;
-import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
-import org.apache.doris.flink.tools.cdc.oracle.OracleDatabaseSync;
-import org.apache.doris.flink.tools.cdc.postgres.PostgresDatabaseSync;
-import org.apache.doris.flink.tools.cdc.sqlserver.SqlServerDatabaseSync;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -58,21 +54,6 @@ public class CdcTools {
             case DatabaseSyncConfig.MYSQL_SYNC_DATABASE:
                 createMySQLSyncDatabase(params);
                 break;
-            case DatabaseSyncConfig.ORACLE_SYNC_DATABASE:
-                createOracleSyncDatabase(params);
-                break;
-            case DatabaseSyncConfig.POSTGRES_SYNC_DATABASE:
-                createPostgresSyncDatabase(params);
-                break;
-            case DatabaseSyncConfig.SQLSERVER_SYNC_DATABASE:
-                createSqlServerSyncDatabase(params);
-                break;
-            case DatabaseSyncConfig.MONGODB_SYNC_DATABASE:
-                createMongoDBSyncDatabase(params);
-                break;
-            case DatabaseSyncConfig.DB2_SYNC_DATABASE:
-                createDb2SyncDatabase(params);
-                break;
             default:
                 System.out.println("Unknown operation " + operation);
                 System.exit(1);
@@ -85,46 +66,6 @@ public class CdcTools {
         Configuration mysqlConfig = Configuration.fromMap(mysqlMap);
         DatabaseSync databaseSync = new MysqlDatabaseSync();
         syncDatabase(params, databaseSync, mysqlConfig, SourceConnector.MYSQL);
-    }
-
-    private static void createOracleSyncDatabase(MultipleParameterTool params) throws Exception {
-        Preconditions.checkArgument(params.has(DatabaseSyncConfig.ORACLE_CONF));
-        Map<String, String> oracleMap = getConfigMap(params, DatabaseSyncConfig.ORACLE_CONF);
-        Configuration oracleConfig = Configuration.fromMap(oracleMap);
-        DatabaseSync databaseSync = new OracleDatabaseSync();
-        syncDatabase(params, databaseSync, oracleConfig, SourceConnector.ORACLE);
-    }
-
-    private static void createPostgresSyncDatabase(MultipleParameterTool params) throws Exception {
-        Preconditions.checkArgument(params.has(DatabaseSyncConfig.POSTGRES_CONF));
-        Map<String, String> postgresMap = getConfigMap(params, DatabaseSyncConfig.POSTGRES_CONF);
-        Configuration postgresConfig = Configuration.fromMap(postgresMap);
-        DatabaseSync databaseSync = new PostgresDatabaseSync();
-        syncDatabase(params, databaseSync, postgresConfig, SourceConnector.POSTGRES);
-    }
-
-    private static void createSqlServerSyncDatabase(MultipleParameterTool params) throws Exception {
-        Preconditions.checkArgument(params.has(DatabaseSyncConfig.SQLSERVER_CONF));
-        Map<String, String> postgresMap = getConfigMap(params, DatabaseSyncConfig.SQLSERVER_CONF);
-        Configuration postgresConfig = Configuration.fromMap(postgresMap);
-        DatabaseSync databaseSync = new SqlServerDatabaseSync();
-        syncDatabase(params, databaseSync, postgresConfig, SourceConnector.SQLSERVER);
-    }
-
-    private static void createMongoDBSyncDatabase(MultipleParameterTool params) throws Exception {
-        Preconditions.checkArgument(params.has(DatabaseSyncConfig.MONGODB_CONF));
-        Map<String, String> mongoMap = getConfigMap(params, DatabaseSyncConfig.MONGODB_CONF);
-        Configuration mongoConfig = Configuration.fromMap(mongoMap);
-        DatabaseSync databaseSync = new MongoDBDatabaseSync();
-        syncDatabase(params, databaseSync, mongoConfig, SourceConnector.MONGODB);
-    }
-
-    private static void createDb2SyncDatabase(MultipleParameterTool params) throws Exception {
-        Preconditions.checkArgument(params.has(DatabaseSyncConfig.DB2_CONF));
-        Map<String, String> db2Map = getConfigMap(params, DatabaseSyncConfig.DB2_CONF);
-        Configuration db2Config = Configuration.fromMap(db2Map);
-        DatabaseSync databaseSync = new Db2DatabaseSync();
-        syncDatabase(params, databaseSync, db2Config, SourceConnector.DB2);
     }
 
     private static void syncDatabase(

@@ -25,11 +25,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.doris.flink.cfg.DorisOptions;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
-import org.apache.doris.flink.tools.cdc.db2.Db2Type;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlType;
-import org.apache.doris.flink.tools.cdc.oracle.OracleType;
-import org.apache.doris.flink.tools.cdc.postgres.PostgresType;
-import org.apache.doris.flink.tools.cdc.sqlserver.SqlServerType;
 
 import java.util.Map;
 
@@ -75,18 +71,6 @@ public class JsonDebeziumChangeUtils {
         switch (sourceConnector) {
             case MYSQL:
                 dorisTypeName = MysqlType.toDorisType(dataType, length, scale);
-                break;
-            case ORACLE:
-                dorisTypeName = OracleType.toDorisType(dataType, length, scale);
-                break;
-            case POSTGRES:
-                dorisTypeName = PostgresType.toDorisType(dataType, length, scale);
-                break;
-            case SQLSERVER:
-                dorisTypeName = SqlServerType.toDorisType(dataType, length, scale);
-                break;
-            case DB2:
-                dorisTypeName = Db2Type.toDorisType(dataType, length, scale);
                 break;
             default:
                 String errMsg = sourceConnector + " not support " + dataType + " schema change.";

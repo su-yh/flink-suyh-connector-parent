@@ -34,6 +34,7 @@ public class LoadConstants {
     public static final String FORMAT_KEY = "format";
     public static final String JSON = "json";
     public static final String CSV = "csv";
+    @Deprecated
     public static final String ARROW = "arrow";
     public static final String NULL_VALUE = "\\N";
     public static final String DORIS_DELETE_SIGN = "__DORIS_DELETE_SIGN__";

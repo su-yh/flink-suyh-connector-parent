@@ -17,17 +17,6 @@
 
 package org.apache.doris.flink.tools.cdc;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.util.CollectionUtil;
-import org.apache.flink.util.OutputTag;
-import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.StringUtils;
-
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
@@ -41,8 +30,17 @@ import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerializer;
 import org.apache.doris.flink.table.DorisConfigOptions;
 import org.apache.doris.flink.tools.cdc.converter.TableNameConverter;
-import org.apache.doris.flink.tools.cdc.oracle.OracleDatabaseSync;
 import org.apache.doris.flink.tools.cdc.utils.DorisTableUtil;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.OutputTag;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +55,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.cdc.debezium.utils.JdbcUrlUtils.PROPERTIES_PREFIX;
 
@@ -366,10 +363,8 @@ public abstract class DatabaseSync {
 
     protected String getSyncTableList(List<String> syncTables) {
         if (!singleSink) {
-            if (this instanceof OracleDatabaseSync) {
-                return syncTables.stream()
-                        .map(v -> getTableListPrefix() + "\\." + v)
-                        .collect(Collectors.joining("|"));
+            if (false) { // if (this instanceof OracleDatabaseSync) {
+                return "";
             } else {
                 return String.format(
                         "(%s)\\.(%s)", getTableListPrefix(), String.join("|", syncTables));
