@@ -90,7 +90,8 @@ public class CdcTools {
                 new DorisTableConfig(getConfigMap(params, DatabaseSyncConfig.TABLE_CONF));
         Configuration sinkConfig = Configuration.fromMap(sinkMap);
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        // StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = null;
         if (true) {
             // suyh - 本地测试 使用 WebUI
             Configuration configuration = new Configuration();
