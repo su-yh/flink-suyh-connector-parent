@@ -26,7 +26,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -36,14 +35,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /** cdc sync tools. */
 public class CdcTools {
     private static final List<String> EMPTY_KEYS =
             Collections.singletonList(DatabaseSyncConfig.PASSWORD);
-    private static StreamExecutionEnvironment flinkEnvironmentForTesting;
-    private static JobClient jobClient;
 
     public static void main(String[] args) throws Exception {
         System.out.println("Input args: " + Arrays.asList(args) + ".\n");
@@ -94,10 +90,7 @@ public class CdcTools {
                 new DorisTableConfig(getConfigMap(params, DatabaseSyncConfig.TABLE_CONF));
         Configuration sinkConfig = Configuration.fromMap(sinkMap);
 
-        StreamExecutionEnvironment env =
-                Objects.nonNull(flinkEnvironmentForTesting)
-                        ? flinkEnvironmentForTesting
-                        : StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         if (true) {
             // suyh - 本地测试 使用 WebUI
             Configuration configuration = new Configuration();
@@ -141,23 +134,7 @@ public class CdcTools {
                             config.getString(
                                     DatabaseSyncConfig.DATABASE_NAME, DatabaseSyncConfig.DB));
         }
-        if (Objects.nonNull(flinkEnvironmentForTesting)) {
-            jobClient = env.executeAsync();
-        } else {
-            env.execute(jobName);
-        }
-    }
-
-    @VisibleForTesting
-    public static JobClient getJobClient() {
-        return jobClient;
-    }
-
-    // Only for testing, please do not use it in actual environment
-    @VisibleForTesting
-    public static void setStreamExecutionEnvironmentForTesting(
-            StreamExecutionEnvironment environment) {
-        flinkEnvironmentForTesting = environment;
+        env.execute(jobName);
     }
 
     @VisibleForTesting
