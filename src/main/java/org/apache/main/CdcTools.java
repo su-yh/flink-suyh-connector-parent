@@ -23,6 +23,7 @@ import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlDatabaseSync;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
@@ -102,6 +103,11 @@ public class CdcTools {
             // 启用/禁用算子链
             configuration.setString("pipeline.operator-chaining.enabled", "false");
             configuration.setString("parallelism.default", "1");
+            // configuration.setInteger("state.checkpoints.num-retained", 2);
+
+            // 从checkpoint 启动
+            // String checkpointPath = "file:///E:\\tmp\\checkpoints\\b4c76e988a362b078a914215ea4d88f6\\chk-222\\_metadata";
+            // configuration.setString("execution.savepoint.path", checkpointPath);
             env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration);
 
             // 1. 开启周期性Checkpoint，间隔30秒（本地调试可缩短，如5秒=5000ms）
@@ -121,6 +127,9 @@ public class CdcTools {
             ckConfig.setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
             // 设置 Checkpoint 超时时间
             ckConfig.setCheckpointTimeout(60000);
+
+            // 禁止失败重试：一旦出错，立即停止任务
+            env.setRestartStrategy(RestartStrategies.noRestart());
         }
         databaseSync
                 .setEnv(env)

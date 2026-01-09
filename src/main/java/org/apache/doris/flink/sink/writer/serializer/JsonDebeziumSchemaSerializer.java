@@ -17,10 +17,6 @@
 
 package org.apache.doris.flink.sink.writer.serializer;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.util.StringUtils;
-
 import com.fasterxml.jackson.core.JsonGenerator.Feature;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -39,6 +35,8 @@ import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSc
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.SQLParserSchemaChange;
 import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 import org.apache.doris.flink.tools.cdc.converter.TableNameConverter;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -215,11 +213,6 @@ public class JsonDebeziumSchemaSerializer implements DorisRecordSerializer<Strin
         return record != null && record.get(key) != null && !(record.get(key) instanceof NullNode)
                 ? record.get(key).asText()
                 : null;
-    }
-
-    @VisibleForTesting
-    public JsonDebeziumSchemaChange getJsonDebeziumSchemaChange() {
-        return this.schemaChange;
     }
 
     public static JsonDebeziumSchemaSerializer.Builder builder() {

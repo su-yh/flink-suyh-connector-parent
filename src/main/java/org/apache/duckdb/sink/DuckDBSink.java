@@ -1,6 +1,7 @@
 package org.apache.duckdb.sink;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
@@ -14,17 +15,25 @@ public class DuckDBSink implements
         TwoPhaseCommittingSink<String, DuckDBCommittable>,
         StatefulSink<String, DuckDBWriterState> {
 
+    private DorisRecordSerializer<String> serializer;
+
+    public DuckDBSink(DorisRecordSerializer<String> serializer) {
+        this.serializer = serializer;
+    }
+
+    // suyh - 首次运行，也就是说没有从checkpoint 启动。
     @Override // 满足 StatefulSink
     public DuckDBWriter createWriter(InitContext context) {
         log.info("suyh - createWriter");
-        return new DuckDBWriter(Collections.emptyList());
+        return new DuckDBWriter(Collections.emptyList(), serializer);
     }
 
+    // suyh - 非首次运行，也就是说从checkpoint 启动
     @Override // 满足 StatefulSink 的恢复路径
     public StatefulSinkWriter<String, DuckDBWriterState> restoreWriter(
             InitContext context, Collection<DuckDBWriterState> recoveredState) {
         log.info("suyh - restoreWriter");
-        return new DuckDBWriter(recoveredState);
+        return new DuckDBWriter(recoveredState, serializer);
     }
 
     @Override // 满足 TwoPhaseCommittingSink

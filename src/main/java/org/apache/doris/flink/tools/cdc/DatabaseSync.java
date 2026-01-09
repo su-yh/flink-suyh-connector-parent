@@ -130,6 +130,9 @@ public abstract class DatabaseSync {
 
         Set<String> targetDbSet = new HashSet<>();
         for (SourceSchema schema : schemaList) {
+            List<String> primaryKeys = schema.getPrimaryKeys();
+            LOG.info("表 {} 的主键是: {}", schema.getTableName(), primaryKeys);
+
             syncTables.add(schema.getTableName());
             String targetDb = database;
             // Synchronize multiple databases using the src database name
@@ -177,15 +180,19 @@ public abstract class DatabaseSync {
                 int sinkParallel =
                         sinkConfig.getInteger(
                                 DorisConfigOptions.SINK_PARALLELISM, sideOutput.getParallelism());
-                sinkParallel = 1;   // duckdb 需要单线程写。
                 String uidName = getUidName(targetDbSet, dbTbl);
                 sideOutput
-                        // .sinkTo(buildDorisSink(dbTbl.f0 + "." + dbTbl.f1))
-                        // .sinkTo(new DuckDBSinkV2("E:\\tmp\\duckdb\\suyh-1\\suyh-duck.db"))
-                        .sinkTo(new DuckDBSink())
+                        .sinkTo(buildDorisSink(dbTbl.f0 + "." + dbTbl.f1))
                         .setParallelism(sinkParallel)
                         .name(uidName)
                         .uid(uidName);
+
+                DorisRecordSerializer<String> serializer = buildDorisSink2(dbTbl.f0 + "." + dbTbl.f1);
+                sideOutput
+                        .sinkTo(new DuckDBSink(serializer))
+                        .setParallelism(1)  // duckdb 需要单线程写。
+                        .name(uidName + "2")
+                        .uid(uidName + "2");
             }
         }
         return true;
@@ -334,6 +341,101 @@ public abstract class DatabaseSync {
                 .setSerializer(buildSchemaSerializer(dorisBuilder, executionOptions))
                 .setDorisOptions(dorisBuilder.build());
         return builder.build();
+    }
+
+    /** create doris sink. */
+    // suyh - 测试使用。
+    public DorisRecordSerializer<String> buildDorisSink2(String tableIdentifier) {
+        String fenodes = sinkConfig.getString(DorisConfigOptions.FENODES);
+        String benodes = sinkConfig.getString(DorisConfigOptions.BENODES);
+        String user = sinkConfig.getString(DorisConfigOptions.USERNAME);
+        String passwd = sinkConfig.getString(DorisConfigOptions.PASSWORD, "");
+        String jdbcUrl = sinkConfig.getString(DorisConfigOptions.JDBC_URL);
+
+        DorisSink.Builder<String> builder = DorisSink.builder();
+        DorisOptions.Builder dorisBuilder = DorisOptions.builder();
+        dorisBuilder
+                .setJdbcUrl(jdbcUrl)
+                .setFenodes(fenodes)
+                .setBenodes(benodes)
+                .setUsername(user)
+                .setPassword(passwd);
+        sinkConfig
+                .getOptional(DorisConfigOptions.AUTO_REDIRECT)
+                .ifPresent(dorisBuilder::setAutoRedirect);
+
+        // single sink not need table identifier
+        if (!singleSink && !StringUtils.isNullOrWhitespaceOnly(tableIdentifier)) {
+            dorisBuilder.setTableIdentifier(tableIdentifier);
+        }
+
+        Properties pro = new Properties();
+        // default json data format
+        pro.setProperty("format", "json");
+        pro.setProperty("read_json_by_line", "true");
+        // customer stream load properties
+        Properties streamLoadProp = DorisConfigOptions.getStreamLoadProp(sinkConfig.toMap());
+        pro.putAll(streamLoadProp);
+        DorisExecutionOptions.Builder executionBuilder =
+                DorisExecutionOptions.builder().setStreamLoadProp(pro);
+
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_LABEL_PREFIX)
+                .ifPresent(executionBuilder::setLabelPrefix);
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_ENABLE_DELETE)
+                .ifPresent(executionBuilder::setDeletable);
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_BUFFER_COUNT)
+                .ifPresent(executionBuilder::setBufferCount);
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_BUFFER_SIZE)
+                .ifPresent(v -> executionBuilder.setBufferSize((int) v.getBytes()));
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_CHECK_INTERVAL)
+                .ifPresent(v -> executionBuilder.setCheckInterval((int) v.toMillis()));
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_MAX_RETRIES)
+                .ifPresent(executionBuilder::setMaxRetries);
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_IGNORE_UPDATE_BEFORE)
+                .ifPresent(executionBuilder::setIgnoreUpdateBefore);
+
+        if (!sinkConfig.getBoolean(DorisConfigOptions.SINK_ENABLE_2PC)) {
+            executionBuilder.disable2PC();
+        } else if (sinkConfig.getOptional(DorisConfigOptions.SINK_ENABLE_2PC).isPresent()) {
+            // force open 2pc
+            executionBuilder.enable2PC();
+        }
+
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_ENABLE_BATCH_MODE)
+                .ifPresent(executionBuilder::setBatchMode);
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_FLUSH_QUEUE_SIZE)
+                .ifPresent(executionBuilder::setFlushQueueSize);
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_BUFFER_FLUSH_MAX_ROWS)
+                .ifPresent(executionBuilder::setBufferFlushMaxRows);
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_BUFFER_FLUSH_MAX_BYTES)
+                .ifPresent(v -> executionBuilder.setBufferFlushMaxBytes((int) v.getBytes()));
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_BUFFER_FLUSH_INTERVAL)
+                .ifPresent(v -> executionBuilder.setBufferFlushIntervalMs(v.toMillis()));
+
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_USE_CACHE)
+                .ifPresent(executionBuilder::setUseCache);
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_WRITE_MODE)
+                .ifPresent(v -> executionBuilder.setWriteMode(WriteMode.of(v)));
+        sinkConfig
+                .getOptional(DorisConfigOptions.SINK_IGNORE_COMMIT_ERROR)
+                .ifPresent(executionBuilder::setIgnoreCommitError);
+
+        DorisExecutionOptions executionOptions = executionBuilder.build();
+        return buildSchemaSerializer(dorisBuilder, executionOptions);
     }
 
     public DorisRecordSerializer<String> buildSchemaSerializer(
