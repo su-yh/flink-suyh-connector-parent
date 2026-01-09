@@ -1,24 +1,29 @@
 package org.apache.duckdb.sink;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.util.Collection;
+import java.util.Collections;
 
-public class DuckDBSinkV2 implements
+@Slf4j
+public class DuckDBSink implements
         TwoPhaseCommittingSink<String, DuckDBCommittable>,
         StatefulSink<String, DuckDBWriterState> {
 
     @Override // 满足 StatefulSink
     public DuckDBWriter createWriter(InitContext context) {
-        return new DuckDBWriter(java.util.Collections.emptyList());
+        log.info("suyh - createWriter");
+        return new DuckDBWriter(Collections.emptyList());
     }
 
     @Override // 满足 StatefulSink 的恢复路径
     public StatefulSinkWriter<String, DuckDBWriterState> restoreWriter(
             InitContext context, Collection<DuckDBWriterState> recoveredState) {
+        log.info("suyh - restoreWriter");
         return new DuckDBWriter(recoveredState);
     }
 

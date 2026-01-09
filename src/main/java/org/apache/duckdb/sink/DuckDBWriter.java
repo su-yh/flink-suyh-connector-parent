@@ -20,7 +20,7 @@ public class DuckDBWriter implements
         // 模拟恢复逻辑
         for (DuckDBWriterState state : states) {
             this.lastCkId = state.lastCheckpointId;
-            LOG.info("检测到恢复状态，从 Checkpoint {} 恢复中...", lastCkId);
+            LOG.debug("检测到恢复状态，从 Checkpoint {} 恢复中...", lastCkId);
         }
     }
 
@@ -32,13 +32,13 @@ public class DuckDBWriter implements
     @Override
     public List<DuckDBCommittable> prepareCommit() throws IOException {
         String mockTxId = "TX-" + System.currentTimeMillis();
-        LOG.info("二阶段提交 - 第一阶段 (Prepare): 生成提交指令 {}", mockTxId);
+        LOG.debug("二阶段提交 - 第一阶段 (Prepare): 生成提交指令 {}", mockTxId);
         return Collections.singletonList(new DuckDBCommittable(mockTxId));
     }
 
     @Override
     public List<DuckDBWriterState> snapshotState(long checkpointId) throws IOException {
-        LOG.info("状态快照 - 记录 Checkpoint ID: {}", checkpointId);
+        LOG.debug("状态快照 - 记录 Checkpoint ID: {}", checkpointId);
         return Collections.singletonList(new DuckDBWriterState(checkpointId));
     }
 

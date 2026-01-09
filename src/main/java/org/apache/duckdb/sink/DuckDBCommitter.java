@@ -12,7 +12,7 @@ public class DuckDBCommitter implements Committer<DuckDBCommittable> {
     @Override
     public void commit(Collection<CommitRequest<DuckDBCommittable>> requests) {
         for (CommitRequest<DuckDBCommittable> request : requests) {
-            LOG.info("二阶段提交 - 第二阶段 (Commit): 真正提交事务 {}", request.getCommittable().txId);
+            LOG.debug("二阶段提交 - 第二阶段 (Commit): 真正提交事务 {}", request.getCommittable().txId);
         }
     }
 

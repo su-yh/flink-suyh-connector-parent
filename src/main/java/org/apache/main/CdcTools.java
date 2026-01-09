@@ -105,7 +105,7 @@ public class CdcTools {
             env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration);
 
             // 1. 开启周期性Checkpoint，间隔30秒（本地调试可缩短，如5秒=5000ms）
-            env.enableCheckpointing(3000);
+            env.enableCheckpointing(60000);
             // 2. 设置状态后端：Flink 1.18 推荐使用 HashMapStateBackend（内存管理）或 EmbeddedRocksDBStateBackend
             env.setStateBackend(new HashMapStateBackend());
             // 3. 设置 Checkpoint 存储路径（存储到本地文件系统）

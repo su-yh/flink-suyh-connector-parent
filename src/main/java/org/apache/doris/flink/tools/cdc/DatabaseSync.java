@@ -31,7 +31,7 @@ import org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerialize
 import org.apache.doris.flink.table.DorisConfigOptions;
 import org.apache.doris.flink.tools.cdc.converter.TableNameConverter;
 import org.apache.doris.flink.tools.cdc.utils.DorisTableUtil;
-import org.apache.duckdb.sink.DuckDBSinkV2;
+import org.apache.duckdb.sink.DuckDBSink;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -182,7 +182,7 @@ public abstract class DatabaseSync {
                 sideOutput
                         // .sinkTo(buildDorisSink(dbTbl.f0 + "." + dbTbl.f1))
                         // .sinkTo(new DuckDBSinkV2("E:\\tmp\\duckdb\\suyh-1\\suyh-duck.db"))
-                        .sinkTo(new DuckDBSinkV2())
+                        .sinkTo(new DuckDBSink())
                         .setParallelism(sinkParallel)
                         .name(uidName)
                         .uid(uidName);
