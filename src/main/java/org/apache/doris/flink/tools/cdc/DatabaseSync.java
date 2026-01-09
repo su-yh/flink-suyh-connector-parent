@@ -31,6 +31,7 @@ import org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerialize
 import org.apache.doris.flink.table.DorisConfigOptions;
 import org.apache.doris.flink.tools.cdc.converter.TableNameConverter;
 import org.apache.doris.flink.tools.cdc.utils.DorisTableUtil;
+import org.apache.duckdb.sink.DuckDBSinkV2;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -165,7 +166,7 @@ public abstract class DatabaseSync {
         config.setString(TABLE_NAME_OPTIONS, getSyncTableList(syncTables));
         DataStreamSource<String> streamSource = buildCdcSource(env);
         if (singleSink) {
-            streamSource.sinkTo(buildDorisSink());
+            // streamSource.sinkTo(buildDorisSink());
         } else {
             SingleOutputStreamOperator<Void> parsedStream =
                     streamSource.process(buildProcessFunction());
@@ -176,9 +177,12 @@ public abstract class DatabaseSync {
                 int sinkParallel =
                         sinkConfig.getInteger(
                                 DorisConfigOptions.SINK_PARALLELISM, sideOutput.getParallelism());
+                sinkParallel = 1;   // duckdb 需要单线程写。
                 String uidName = getUidName(targetDbSet, dbTbl);
                 sideOutput
-                        .sinkTo(buildDorisSink(dbTbl.f0 + "." + dbTbl.f1))
+                        // .sinkTo(buildDorisSink(dbTbl.f0 + "." + dbTbl.f1))
+                        // .sinkTo(new DuckDBSinkV2("E:\\tmp\\duckdb\\suyh-1\\suyh-duck.db"))
+                        .sinkTo(new DuckDBSinkV2())
                         .setParallelism(sinkParallel)
                         .name(uidName)
                         .uid(uidName);
@@ -225,10 +229,10 @@ public abstract class DatabaseSync {
         return builder.build();
     }
 
-    /** create doris sink for multi table. */
-    public DorisSink<String> buildDorisSink() {
-        return buildDorisSink(null);
-    }
+    // /** create doris sink for multi table. */
+    // public DorisSink<String> buildDorisSink() {
+    //     return buildDorisSink(null);
+    // }
 
     public ParsingProcessFunction buildProcessFunction() {
         return new ParsingProcessFunction(database, converter);

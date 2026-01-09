@@ -26,6 +26,9 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -96,12 +99,28 @@ public class CdcTools {
             // suyh - 本地测试 使用 WebUI
             Configuration configuration = new Configuration();
             configuration.set(RestOptions.BIND_PORT, "8082");
+            // 启用/禁用算子链
             configuration.setString("pipeline.operator-chaining.enabled", "false");
             configuration.setString("parallelism.default", "1");
             env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration);
 
             // 1. 开启周期性Checkpoint，间隔30秒（本地调试可缩短，如5秒=5000ms）
             env.enableCheckpointing(3000);
+            // 2. 设置状态后端：Flink 1.18 推荐使用 HashMapStateBackend（内存管理）或 EmbeddedRocksDBStateBackend
+            env.setStateBackend(new HashMapStateBackend());
+            // 3. 设置 Checkpoint 存储路径（存储到本地文件系统）
+            // 注意：Windows 环境下路径示例 "file:///D:/flink-checkpoints"
+            //      Linux/Mac 环境下路径示例 "file:///tmp/flink-checkpoints"
+            env.getCheckpointConfig().setCheckpointStorage("file:///E:\\tmp\\checkpoints");
+
+            // 4. (可选) 高级配置
+            CheckpointConfig ckConfig = env.getCheckpointConfig();
+            // 确保 Checkpointing 模式为 EXACTLY_ONCE（默认即是）
+            ckConfig.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+            // 任务取消后保留 Checkpoint 数据（方便调试查看文件）
+            ckConfig.setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+            // 设置 Checkpoint 超时时间
+            ckConfig.setCheckpointTimeout(60000);
         }
         databaseSync
                 .setEnv(env)
