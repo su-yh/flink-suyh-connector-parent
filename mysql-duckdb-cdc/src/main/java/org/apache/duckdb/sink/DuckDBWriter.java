@@ -1,7 +1,5 @@
 package org.apache.duckdb.sink;
 
-import org.apache.doris.flink.sink.writer.serializer.DorisRecord;
-import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.slf4j.Logger;
@@ -12,15 +10,13 @@ import java.util.Collections;
 import java.util.List;
 
 public class DuckDBWriter implements
-        StatefulSink.StatefulSinkWriter<String, DuckDBWriterState>,
-        TwoPhaseCommittingSink.PrecommittingSinkWriter<String, DuckDBCommittable> {
+        StatefulSink.StatefulSinkWriter<RecordDto, DuckDBWriterState>,
+        TwoPhaseCommittingSink.PrecommittingSinkWriter<RecordDto, DuckDBCommittable> {
 
     private static final Logger LOG = LoggerFactory.getLogger(DuckDBWriter.class);
     private long lastCkId = 0;
-    private final DorisRecordSerializer<String> serializer;
 
-    public DuckDBWriter(Iterable<DuckDBWriterState> states, DorisRecordSerializer<String> serializer) {
-        this.serializer = serializer;
+    public DuckDBWriter(Iterable<DuckDBWriterState> states) {
         // 模拟恢复逻辑
         for (DuckDBWriterState state : states) {
             this.lastCkId = state.lastCheckpointId;
@@ -29,11 +25,10 @@ public class DuckDBWriter implements
     }
 
     @Override
-    public void write(String element, Context context) throws IOException {
-        DorisRecord dorisRecord = serializer.serialize(element);
-        LOG.debug("接收到数据 (准备写入缓存): {}", element);
-        LOG.info("接收到数据 (准备写入缓存)，suyh - database: {}, table: {}, TableIdentifier: {}",
-                dorisRecord.getDatabase(), dorisRecord.getTable(), dorisRecord.getTableIdentifier());
+    public void write(RecordDto recordDto, Context context) throws IOException {
+        LOG.debug("接收到数据 (准备写入缓存): {}", recordDto);
+        LOG.info("接收到数据 (准备写入缓存)，suyh - database: {}, table: {}",
+                recordDto.getSource().getDb(), recordDto.getSource().getTable());
     }
 
     @Override
