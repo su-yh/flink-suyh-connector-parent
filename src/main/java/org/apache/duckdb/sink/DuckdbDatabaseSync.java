@@ -34,6 +34,7 @@ import org.apache.doris.flink.tools.cdc.ParsingProcessFunction;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.doris.flink.tools.cdc.converter.TableNameConverter;
 import org.apache.doris.flink.tools.cdc.utils.DorisTableUtil;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -55,6 +56,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -170,6 +172,28 @@ public abstract class DuckdbDatabaseSync {
         LOG.info("table mapping: {}", tableMapping);
         config.setString(TABLE_NAME_OPTIONS, getSyncTableList(syncTables));
         DataStreamSource<String> streamSource = buildCdcSource(env);
+        if (true) {
+            SingleOutputStreamOperator<RecordDto> recordDtoDataSource = streamSource.map(new MapFunction<String, RecordDto>() {
+                @Override
+                public RecordDto map(String value) throws Exception {
+                    if (StringUtils.isNullOrWhitespaceOnly(value)) {
+                        return null;
+                    }
+
+                    try {
+                        return JsonUtils.deserialize(value, RecordDto.class);
+                    } catch (Exception e) {
+                        LOG.error("failed: {}", e.getMessage());
+                        return null;
+                    }
+                }
+            });
+
+            SingleOutputStreamOperator<RecordDto> filterDataSource = recordDtoDataSource.filter(Objects::nonNull);
+            // filterDataSource.print("suyh");
+            filterDataSource.addSink(new CustomPrintSink());
+            return true;
+        }
         if (singleSink) {
             // streamSource.sinkTo(buildDorisSink());
         } else {
