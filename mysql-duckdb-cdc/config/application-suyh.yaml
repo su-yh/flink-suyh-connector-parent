@@ -1,0 +1,56 @@
+
+
+knife4j:
+  enable: true
+
+
+logging:
+  level:
+    root: info
+  file:
+    name: /tmp/mysql-duckdb-cdc/logs/cdc.log
+  logback:
+    rollingpolicy:
+      clean-history-on-start: true
+      file-name-pattern: /tmp/mysql-duckdb-cdc/logs/%d{yyyy-MM-dd}/cdc.%02i.log
+      max-file-size: 20MB
+
+
+server:
+  error:
+    # spring mvc 的默认异常处理，可以添加或者禁用一些返回值属性。
+    include-binding-errors: always
+    include-exception: true
+    # message 取的是异常里面的描述字符串
+    include-message: always
+    include-stacktrace: on_param
+
+
+spring:
+  datasource:
+    hikari:
+      cem-master-mysql:
+        jdbc-url: jdbc:mysql://192.168.8.10:3308/suyh_cem?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false
+        username: suyh_cem
+        password: suyh_cem
+        driver-class-name: com.mysql.cj.jdbc.Driver
+      cem-slave-mysql:
+        jdbc-url: jdbc:mysql://192.168.8.10:3307/suyh_cem?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false
+        username: suyh_cem
+        password: suyh_cem
+        driver-class-name: com.mysql.cj.jdbc.Driver
+      payment-mysql:
+        jdbc-url: jdbc:mysql://192.168.8.10:3308/suyh_cem_payment?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false
+        username: suyh_cem_payment
+        password: suyh_cem_payment
+        driver-class-name: com.mysql.cj.jdbc.Driver
+      payment-slave-mysql:
+        jdbc-url: jdbc:mysql://192.168.8.10:3307/suyh_cem_payment?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false
+        username: suyh_cem_payment
+        password: suyh_cem_payment
+        driver-class-name: com.mysql.cj.jdbc.Driver
+
+
+
+
+

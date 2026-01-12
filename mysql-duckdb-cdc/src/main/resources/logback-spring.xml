@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 注意这个文件名，似乎只能是这个，否则springProperty 会有问题配置这个文件名系统会自动加载这个配置 -->
+<configuration>
+    <property name="PATTERN_STDOUT" value="%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd HH:mm:ss.SSS}} | %highlight(${LOG_LEVEL_PATTERN:-%5p}) | %16.16thread | %boldGreen(%-40.40logger:%4L) | %yellow(%X{trace-id}) | %m%n"/>
+    <property name="PATTERN_FILE" value="%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd HH:mm:ss.SSS}} | ${LOG_LEVEL_PATTERN:-%5p} ${PID:- } | %16.16thread | %-40.40logger:%4L | %X{trace-id} | %m%n"/>
+
+
+
+    <!-- 控制台输出 -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <!--格式化输出 -->
+            <pattern>${PATTERN_STDOUT}</pattern>
+        </encoder>
+    </appender>
+    <!-- 按照每天生成日志文件 -->
+    <!-- 参考 Spring Boot 的 file-appender.xml 编写 -->
+    <appender name="FILE"  class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- 日志文件名:${logging.file.name} -->
+        <file>${LOG_FILE:-/opt/ads/ads/server/logs/sys-info.log}</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- 滚动后的日志文件名 -->
+            <!--如果变量对应的值不存在则取默认值，格式为：':-' -->
+            <!--变量(LOGBACK_ROLLINGPOLICY_FILE_NAME_PATTERN) ==> 对应配置文件 中的配置项： logging.logback.rollingpolicy.file-name-pattern-->
+            <fileNamePattern>${LOGBACK_ROLLINGPOLICY_FILE_NAME_PATTERN:-/opt/ads/ads/server/logs/%d{yyyy-MM-dd}/sys-info.%03i.log}</fileNamePattern>
+            <!-- 启动服务时，是否清理历史日志，一般不建议清理 -->
+            <!--LOGBACK_ROLLINGPOLICY_CLEAN_HISTORY_ON_START  对应配置文件中的： logging.logback.rollingpolicy.clean-history-on-start -->
+            <cleanHistoryOnStart>${LOGBACK_ROLLINGPOLICY_CLEAN_HISTORY_ON_START:-true}</cleanHistoryOnStart>
+            <!-- 日志文件，到达多少容量，进行滚动 -->
+            <maxFileSize>${LOGBACK_ROLLINGPOLICY_MAX_FILE_SIZE:-20MB}</maxFileSize>
+            <!-- 日志文件的总大小，0 表示不限制 -->
+            <totalSizeCap>${LOGBACK_ROLLINGPOLICY_TOTAL_SIZE_CAP:-0}</totalSizeCap>
+            <maxHistory>${LOGBACK_ROLLINGPOLICY_MAX_HISTORY:-100}</maxHistory>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>${PATTERN_FILE}</pattern>
+        </encoder>
+    </appender>
+
+    <root level="info">
+        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="FILE"/>
+    </root>
+
+</configuration>
+

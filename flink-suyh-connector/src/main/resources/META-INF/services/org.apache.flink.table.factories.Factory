@@ -15,5 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# 在SQL 的时候才需要
 org.apache.doris.flink.table.DorisDynamicTableFactory
 org.apache.doris.flink.catalog.DorisCatalogFactory
+
+

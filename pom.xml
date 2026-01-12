@@ -12,6 +12,6 @@
 
     <modules>
         <module>flink-suyh-connector</module>
-<!--        <module>mysql-duckdb-cdc</module>-->
+        <module>mysql-duckdb-cdc</module>
     </modules>
 </project>
