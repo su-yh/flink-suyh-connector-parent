@@ -11,7 +11,7 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>flink-suyh-connector</module>
+<!--        <module>flink-suyh-connector</module>-->
         <module>mysql-duckdb-cdc</module>
     </modules>
 </project>
