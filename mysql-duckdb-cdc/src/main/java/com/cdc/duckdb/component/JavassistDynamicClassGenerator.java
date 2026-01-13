@@ -1,8 +1,6 @@
 package com.cdc.duckdb.component;
 
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import javassist.ClassPool;
@@ -25,16 +23,6 @@ import java.util.List;
 import java.util.Map;
 
 public class JavassistDynamicClassGenerator {
-
-    // 原有硬编码Entity（保留用于对比，可注释）
-    @Data
-    @TableName("user_info")
-    public static class UserInfoEntity {
-        @TableId(value = "id", type = IdType.AUTO)
-        private Long id;
-
-        private Long traceId;
-    }
 
     /**
      * 基于 MysqlSchema 动态生成 MyBatis-Plus Entity 类
@@ -120,16 +108,38 @@ public class JavassistDynamicClassGenerator {
 
         // 2. 构建 Java 成员变量名（默认：数据库字段名下划线转驼峰，如 user_id -> userId）
         String fieldName = underlineToCamel(mysqlColumn.getName());
-        // String fieldName = mysqlColumn.getName();
         CtField ctField = new CtField(fieldType, fieldName, ctEntityClass);
 
         // 3. 设置成员变量修饰符为 private（符合JavaBean规范）
         ctField.setModifiers(Modifier.PRIVATE);
 
-        // 5. 将成员变量添加到动态类中
+        // ===================== 新增：为字段添加 @TableField 注解 =====================
+        // 3.1 定义 @TableField 注解的全类名（MyBatis-Plus 注解，若使用其他注解可修改路径）
+        String tableFieldAnnotationClass = "com.baomidou.mybatisplus.annotation.TableField";
+
+        // 3.2 构建注解实例（基于 ConstPool 生成，确保注解能被字节码识别）
+        Annotation tableFieldAnnotation = new Annotation(tableFieldAnnotationClass, constPool);
+
+        // 3.3 为注解设置 value 属性（值为数据库原始字段名，如 "status"、"user_id"）
+        String dbColumnName = mysqlColumn.getName(); // 数据库原始字段名（带下划线）
+        StringMemberValue valueMember = new StringMemberValue(dbColumnName, constPool);
+        tableFieldAnnotation.addMemberValue("value", valueMember);
+
+        // 3.4 （可选）添加其他 @TableField 注解属性（如 exist、fill 等，按需扩展）
+        // 示例：设置 exist = true（默认值，可省略）
+        // BooleanMemberValue existMember = new BooleanMemberValue(true, constPool);
+        // tableFieldAnnotation.addMemberValue("exist", existMember);
+
+        // 3.5 将注解绑定到 CtField 上（封装为 AnnotationsAttribute 并设置到字段属性中）
+        AnnotationsAttribute fieldAnnotationAttr = new AnnotationsAttribute(constPool, AnnotationsAttribute.visibleTag);
+        fieldAnnotationAttr.setAnnotation(tableFieldAnnotation);
+        ctField.getFieldInfo().addAttribute(fieldAnnotationAttr);
+        // ==========================================================================
+
+        // 4. 将成员变量添加到动态类中
         ctEntityClass.addField(ctField);
 
-        // 6. 为成员变量生成 getter/setter 方法（若不使用Lombok，可手动生成；使用Lombok可省略，这里做兼容）
+        // 5. 为成员变量生成 getter/setter 方法（若不使用Lombok，可手动生成；使用Lombok可省略，这里做兼容）
         generateGetterSetter(ctEntityClass, ctField, fieldName, fieldType);
     }
 
@@ -179,7 +189,7 @@ public class JavassistDynamicClassGenerator {
     /**
      * 原有动态 Mapper 生成方法（优化：支持传入动态生成的Entity Class）
      */
-    public static Class<?> generateDynamicMapper(Class<?> entityClass) {
+    public static Class<?> generateDynamicMapper(String mapperPackage, String mapperClassName, Class<?> entityClass) {
         try {
             ClassPool pool = ClassPool.getDefault();
 
@@ -187,8 +197,8 @@ public class JavassistDynamicClassGenerator {
             CtClass baseMapperCt = pool.get(BaseMapper.class.getName());
 
             // 2. 构建 Mapper 接口的完整类名
-            String mapperClassName = "com.ebusiness.mp.mysql.base.mapper.custom.PersonCustomMapper";
-            CtClass mapperCt = pool.makeInterface(mapperClassName, baseMapperCt);
+            String fullMapperClassName = mapperPackage + "." + mapperClassName;
+            CtClass mapperCt = pool.makeInterface(fullMapperClassName, baseMapperCt);
 
             // 3. 构建泛型签名（绑定动态生成的Entity）
             SignatureAttribute.ClassSignature ac = new SignatureAttribute.ClassSignature(
@@ -204,15 +214,13 @@ public class JavassistDynamicClassGenerator {
 
             // 4. 设置泛型签名并转换为 Class
             mapperCt.setGenericSignature(ac.encode());
+
+            mapperCt.writeFile("./debug"); // TODO: suyh - 测试，验证结果。这是会生成java 文件，还是生成class 文件
+
             return mapperCt.toClass();
         } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
-    }
-
-    // 重载方法：兼容原有硬编码 Entity
-    public static Class<?> generateDynamicMapper() {
-        return generateDynamicMapper(UserInfoEntity.class);
     }
 }

@@ -136,7 +136,9 @@ public abstract class DuckdbDatabaseSync {
             List<String> primaryKeys = schema.getPrimaryKeys();
             LOG.info("表 {} 的主键是: {}", schema.getTableName(), primaryKeys);
 
-            Class<?> entityClass = JavassistDynamicClassGenerator.generateDynamicEntity(schema, "com.cdc.duckdb.mp", schema.getTableName() + "Entity");
+            // suyh - OK
+            Class<?> entityClass = JavassistDynamicClassGenerator.generateDynamicEntity(schema, "com.cdc.duckdb.mp.entity", schema.getTableName() + "_entity");
+            Class<?> mapperClass = JavassistDynamicClassGenerator.generateDynamicMapper("com.cdc.duckdb.mp.mapper", schema.getTableName() + "_mapper", entityClass);
 
 
             syncTables.add(schema.getTableName());
