@@ -17,11 +17,11 @@
 
 package org.apache.doris.flink.tools.cdc;
 
-import org.apache.flink.util.StringUtils;
-
 import org.apache.doris.flink.catalog.doris.DataModel;
+import org.apache.doris.flink.catalog.doris.DuckdbFieldSchema;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.catalog.doris.TableSchema;
+import org.apache.flink.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,6 +36,7 @@ public abstract class SourceSchema {
     protected final String tableName;
     protected final String tableComment;
     protected LinkedHashMap<String, FieldSchema> fields;
+    protected LinkedHashMap<String, DuckdbFieldSchema> duckdbFields;
     public List<String> primaryKeys;
     public List<String> uniqueIndexs;
     public DataModel model = DataModel.UNIQUE;
@@ -109,6 +110,10 @@ public abstract class SourceSchema {
 
     public Map<String, FieldSchema> getFields() {
         return fields;
+    }
+
+    public Map<String, DuckdbFieldSchema> getDuckdbFields() {
+        return duckdbFields;
     }
 
     public List<String> getPrimaryKeys() {

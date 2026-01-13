@@ -18,7 +18,6 @@
 package org.apache.doris.flink.tools.cdc;
 
 import org.apache.doris.flink.catalog.doris.DuckdbFieldSchema;
-import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.tools.cdc.mysql.MysqlType;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -48,15 +47,16 @@ public abstract class JdbcSourceSchema extends SourceSchema {
             String tableComment)
             throws Exception {
         super(databaseName, schemaName, tableName, tableComment);
-        fields = getColumnInfo(metaData, databaseName, schemaName, tableName);
+        duckdbFields = getColumnInfo(metaData, databaseName, schemaName, tableName);
+        fields = duckdbFields == null ? null : new LinkedHashMap<>(duckdbFields);
         primaryKeys = getPrimaryKeys(metaData, databaseName, schemaName, tableName);
         uniqueIndexs = getUniqIndex(metaData, databaseName, schemaName, tableName);
     }
 
-    public LinkedHashMap<String, FieldSchema> getColumnInfo(
+    public LinkedHashMap<String, DuckdbFieldSchema> getColumnInfo(
             DatabaseMetaData metaData, String databaseName, String schemaName, String tableName)
             throws SQLException {
-        LinkedHashMap<String, FieldSchema> fields = new LinkedHashMap<>();
+        LinkedHashMap<String, DuckdbFieldSchema> fields = new LinkedHashMap<>();
         LOG.debug("Starting to get column info for table: {}", tableName);
         try (ResultSet rs = metaData.getColumns(databaseName, schemaName, tableName, null)) {
             while (rs.next()) {

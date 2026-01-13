@@ -14,7 +14,6 @@ import javassist.bytecode.annotation.Annotation;
 import javassist.bytecode.annotation.StringMemberValue;
 import lombok.Data;
 import org.apache.doris.flink.catalog.doris.DuckdbFieldSchema;
-import org.apache.doris.flink.catalog.doris.FieldSchema;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.ibatis.javassist.bytecode.SignatureAttribute;
 
@@ -52,10 +51,10 @@ public class JavassistDynamicClassGenerator {
         addTableNameAnnotation(ctEntityClass, tableName);
 
         // 5. 遍历 MysqlSchema 中的列信息，动态生成Entity的成员变量及注解
-        Map<String, FieldSchema> fields = sourceSchema.getFields();
-        List<FieldSchema> mysqlColumns = fields == null ? new ArrayList<>() : new ArrayList<>(fields.values());
-        for (FieldSchema column : mysqlColumns) {
-            generateEntityField(ctEntityClass, (DuckdbFieldSchema) column);
+        Map<String, DuckdbFieldSchema> fields = sourceSchema.getDuckdbFields();
+        List<DuckdbFieldSchema> mysqlColumns = fields == null ? new ArrayList<>() : new ArrayList<>(fields.values());
+        for (DuckdbFieldSchema column : mysqlColumns) {
+            generateEntityField(ctEntityClass, column);
         }
 
         // ctEntityClass.writeFile("./debug"); // TODO: suyh - 测试，验证结果。这是会生成java 文件，还是生成class 文件
