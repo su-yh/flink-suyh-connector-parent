@@ -49,7 +49,7 @@ public abstract class SourceSchema {
         this.tableComment = tableComment;
     }
 
-    public abstract String convertToDorisType(String fieldType, Integer precision, Integer scale);
+    public abstract String convertToDuckdbType(String fieldType, Integer precision, Integer scale);
 
     public abstract String getCdcTableName();
 

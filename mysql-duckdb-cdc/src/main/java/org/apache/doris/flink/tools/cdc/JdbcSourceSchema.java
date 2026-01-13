@@ -17,9 +17,10 @@
 
 package org.apache.doris.flink.tools.cdc;
 
-import org.apache.flink.util.Preconditions;
-
+import org.apache.doris.flink.catalog.doris.DuckdbFieldSchema;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
+import org.apache.doris.flink.tools.cdc.mysql.MysqlType;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,13 +72,15 @@ public abstract class JdbcSourceSchema extends SourceSchema {
                 if (rs.wasNull()) {
                     scale = null;
                 }
-                String dorisTypeStr = null;
+                String duckdbTypeStr = null;
+                Class<?> javaClass = null;
                 try {
-                    dorisTypeStr = convertToDorisType(fieldType, precision, scale);
+                    duckdbTypeStr = MysqlType.toDuckdbType(fieldType, precision, scale);
+                    javaClass = MysqlType.toJavaClass(fieldType, precision, scale);
                 } catch (UnsupportedOperationException e) {
                     throw new UnsupportedOperationException(e + " in table: " + tableName);
                 }
-                fields.put(fieldName, new FieldSchema(fieldName, dorisTypeStr, comment));
+                fields.put(fieldName, new DuckdbFieldSchema(fieldName, duckdbTypeStr, comment, javaClass));
             }
         }
         Preconditions.checkArgument(!fields.isEmpty(), "The column info of {} is empty", tableName);
@@ -126,5 +129,5 @@ public abstract class JdbcSourceSchema extends SourceSchema {
         return new ArrayList<>();
     }
 
-    public abstract String convertToDorisType(String fieldType, Integer precision, Integer scale);
+    public abstract String convertToDuckdbType(String fieldType, Integer precision, Integer scale);
 }

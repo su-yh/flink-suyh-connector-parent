@@ -17,6 +17,7 @@
 
 package org.apache.duckdb.sink;
 
+import com.cdc.duckdb.component.JavassistDynamicClassGenerator;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
@@ -134,6 +135,9 @@ public abstract class DuckdbDatabaseSync {
         for (SourceSchema schema : schemaList) {
             List<String> primaryKeys = schema.getPrimaryKeys();
             LOG.info("表 {} 的主键是: {}", schema.getTableName(), primaryKeys);
+
+            Class<?> entityClass = JavassistDynamicClassGenerator.generateDynamicEntity(schema, "com.cdc.duckdb.mp", schema.getTableName() + "Entity");
+
 
             syncTables.add(schema.getTableName());
             String targetDb = database;

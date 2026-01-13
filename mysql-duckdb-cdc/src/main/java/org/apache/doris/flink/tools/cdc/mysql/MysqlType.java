@@ -17,10 +17,14 @@
 
 package org.apache.doris.flink.tools.cdc.mysql;
 
+import org.apache.doris.flink.tools.cdc.DuckdbType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.doris.flink.catalog.doris.DorisType;
+
+import java.math.BigDecimal;
+import java.util.Date;
 
 import static org.apache.doris.flink.catalog.DorisTypeMapper.MAX_SUPPORTED_DATE_TIME_PRECISION;
 
@@ -213,6 +217,242 @@ public class MysqlType {
                 return DorisType.JSONB;
             default:
                 throw new UnsupportedOperationException("Unsupported MySQL Type: " + type);
+        }
+    }
+
+    // ---------------------- 新增 toDuckdbType 方法 ----------------------
+    /**
+     * 将 MySQL 字段类型映射为 DuckDB 字段类型
+     * @param type MySQL 字段类型名称（如 INT、VARCHAR、DECIMAL）
+     * @param length 字段长度（如 VARCHAR(50) 的 50，DECIMAL(10,2) 的 10）
+     * @param scale 字段小数位数（如 DECIMAL(10,2) 的 2）
+     * @return DuckDB 对应的字段类型字符串
+     */
+    public static String toDuckdbType(String type, Integer length, Integer scale) {
+        // 统一转为大写，避免大小写敏感问题
+        String mysqlType = type.toUpperCase();
+
+        switch (mysqlType) {
+            // 布尔类型映射
+            case BIT:
+            case BOOLEAN:
+            case BOOL:
+                return DuckdbType.BOOLEAN;
+
+            // 整数类型映射（兼容无符号/零填充，DuckDB 无专门无符号类型，使用更大范围整数兼容）
+            case TINYINT:
+                return DuckdbType.TINYINT;
+            case TINYINT_UNSIGNED:
+            case TINYINT_UNSIGNED_ZEROFILL:
+            case SMALLINT:
+                return DuckdbType.SMALLINT;
+            case SMALLINT_UNSIGNED:
+            case SMALLINT_UNSIGNED_ZEROFILL:
+            case MEDIUMINT:
+            case YEAR:
+                return DuckdbType.INTEGER;
+            case INT:
+            case INTEGER:
+            case INT_UNSIGNED:
+            case INT_UNSIGNED_ZEROFILL:
+            case INTEGER_UNSIGNED:
+            case INTEGER_UNSIGNED_ZEROFILL:
+            case MEDIUMINT_UNSIGNED:
+            case MEDIUMINT_UNSIGNED_ZEROFILL:
+                return DuckdbType.INTEGER;
+            case BIGINT:
+            case SERIAL:
+                return DuckdbType.BIGINT;
+            case BIGINT_UNSIGNED:
+            case BIGINT_UNSIGNED_ZEROFILL:
+                return DuckdbType.BIGINT;
+
+            // 浮点类型映射
+            case FLOAT:
+            case FLOAT_UNSIGNED:
+            case FLOAT_UNSIGNED_ZEROFILL:
+            case REAL:
+            case REAL_UNSIGNED:
+            case REAL_UNSIGNED_ZEROFILL:
+                return DuckdbType.FLOAT;
+            case DOUBLE:
+            case DOUBLE_UNSIGNED:
+            case DOUBLE_UNSIGNED_ZEROFILL:
+            case DOUBLE_PRECISION:
+            case DOUBLE_PRECISION_UNSIGNED:
+            case DOUBLE_PRECISION_UNSIGNED_ZEROFILL:
+                return DuckdbType.DOUBLE;
+
+            // 高精度小数类型映射（DECIMAL/NUMERIC/FIXED 统一映射为 DuckDB DECIMAL）
+            case NUMERIC:
+            case NUMERIC_UNSIGNED:
+            case NUMERIC_UNSIGNED_ZEROFILL:
+            case FIXED:
+            case FIXED_UNSIGNED:
+            case FIXED_UNSIGNED_ZEROFILL:
+            case DECIMAL:
+            case DECIMAL_UNSIGNED:
+            case DECIMAL_UNSIGNED_ZEROFILL:
+                // 处理默认值：长度默认 10，小数位默认 0
+                int decimalLength = (length != null && length > 0) ? length : 10;
+                int decimalScale = (scale != null && scale >= 0) ? scale : 0;
+                // DuckDB DECIMAL 支持 (precision, scale)，precision 最大 38
+                decimalLength = Math.min(decimalLength, 38);
+                return String.format("DECIMAL(%d, %d)", decimalLength, decimalScale);
+
+            // 日期时间类型映射
+            case DATE:
+                return DuckdbType.DATE;
+            case TIME:
+                return DuckdbType.TIME;
+            case DATETIME:
+            case TIMESTAMP:
+                // 处理时间精度，默认 0 位小数（无毫秒）
+                if (length == null || length <= 0 || length == ZERO_PRECISION_TIMESTAMP_COLUMN_SIZE) {
+                    return DuckdbType.TIMESTAMP;
+                } else {
+                    // 提取毫秒精度，最大支持 6 位（DuckDB 标准）
+                    int precision = Math.min(length - ZERO_PRECISION_TIMESTAMP_COLUMN_SIZE - 1, 6);
+                    return String.format("TIMESTAMP(%d)", precision);
+                }
+
+                // 字符串类型映射
+            case CHAR:
+                length = (length != null && length > 0) ? length : 1;
+                return String.format("CHAR(%d)", length);
+            case VARCHAR:
+                Preconditions.checkNotNull(length, "VARCHAR type must specify length");
+                return String.format("VARCHAR(%d)", length);
+            case TINYTEXT:
+            case MEDIUMTEXT:
+            case TEXT:
+            case LONGTEXT:
+                return DuckdbType.VARCHAR; // DuckDB 无专门 TEXT 类型，使用无长度限制 VARCHAR 兼容
+
+            // 二进制类型映射（DuckDB 用 BLOB 统一兼容各类二进制数据）
+            case BINARY:
+            case VARBINARY:
+            case TINYBLOB:
+            case MEDIUMBLOB:
+            case BLOB:
+            case LONGBLOB:
+                return DuckdbType.BLOB;
+
+            // 特殊类型映射
+            case JSON:
+                return DuckdbType.JSON;
+            case ENUM:
+            case SET:
+                return DuckdbType.VARCHAR; // ENUM/SET 转为字符串类型兼容
+
+            // 未匹配类型抛出异常
+            default:
+                throw new UnsupportedOperationException("Unsupported MySQL Type for DuckDB mapping: " + type);
+        }
+    }
+
+    /**
+     * 将 MySQL 字段类型映射为 DuckDB 字段类型
+     * @param type MySQL 字段类型名称（如 INT、VARCHAR、DECIMAL）
+     * @param length 字段长度（如 VARCHAR(50) 的 50，DECIMAL(10,2) 的 10）
+     * @param scale 字段小数位数（如 DECIMAL(10,2) 的 2）
+     * @return DuckDB 对应的字段类型字符串
+     */
+    public static Class<?> toJavaClass(String type, Integer length, Integer scale) {
+        // 统一转为大写，避免大小写敏感问题
+        String mysqlType = type.toUpperCase();
+
+        switch (mysqlType) {
+            // 布尔类型映射
+            case BIT:
+            case BOOLEAN:
+            case BOOL:
+                return Boolean.class;
+
+            // 整数类型映射（兼容无符号/零填充，DuckDB 无专门无符号类型，使用更大范围整数兼容）
+            case TINYINT:
+            case TINYINT_UNSIGNED:
+            case TINYINT_UNSIGNED_ZEROFILL:
+            case SMALLINT:
+            case SMALLINT_UNSIGNED:
+            case SMALLINT_UNSIGNED_ZEROFILL:
+            case MEDIUMINT:
+            case YEAR:
+                return Integer.class;
+            case INT:
+            case INTEGER:
+            case INT_UNSIGNED:
+            case INT_UNSIGNED_ZEROFILL:
+            case INTEGER_UNSIGNED:
+            case INTEGER_UNSIGNED_ZEROFILL:
+            case MEDIUMINT_UNSIGNED:
+            case MEDIUMINT_UNSIGNED_ZEROFILL:
+            case BIGINT:
+            case SERIAL:
+            case BIGINT_UNSIGNED:
+            case BIGINT_UNSIGNED_ZEROFILL:
+                return Integer.class;
+
+            // 浮点类型映射
+            case FLOAT:
+            case FLOAT_UNSIGNED:
+            case FLOAT_UNSIGNED_ZEROFILL:
+            case REAL:
+            case REAL_UNSIGNED:
+            case REAL_UNSIGNED_ZEROFILL:
+                return Float.class;
+            case DOUBLE:
+            case DOUBLE_UNSIGNED:
+            case DOUBLE_UNSIGNED_ZEROFILL:
+            case DOUBLE_PRECISION:
+            case DOUBLE_PRECISION_UNSIGNED:
+            case DOUBLE_PRECISION_UNSIGNED_ZEROFILL:
+                return Double.class;
+
+            // 高精度小数类型映射（DECIMAL/NUMERIC/FIXED 统一映射为 DuckDB DECIMAL）
+            case NUMERIC:
+            case NUMERIC_UNSIGNED:
+            case NUMERIC_UNSIGNED_ZEROFILL:
+            case FIXED:
+            case FIXED_UNSIGNED:
+            case FIXED_UNSIGNED_ZEROFILL:
+            case DECIMAL:
+            case DECIMAL_UNSIGNED:
+            case DECIMAL_UNSIGNED_ZEROFILL:
+                return BigDecimal.class;
+
+            // 日期时间类型映射
+            case DATE:
+            case TIME:
+            case DATETIME:
+            case TIMESTAMP:
+                return Date.class;
+            case CHAR:
+            case VARCHAR:
+            case TINYTEXT:
+            case MEDIUMTEXT:
+            case TEXT:
+            case LONGTEXT:
+                return String.class;
+
+            // 二进制类型映射（DuckDB 用 BLOB 统一兼容各类二进制数据）
+            case BINARY:
+            case VARBINARY:
+            case TINYBLOB:
+            case MEDIUMBLOB:
+            case BLOB:
+            case LONGBLOB:
+                return Boolean.class;
+
+            // 特殊类型映射
+            case JSON:
+            case ENUM:
+            case SET:
+                return String.class;
+
+            // 未匹配类型抛出异常
+            default:
+                throw new UnsupportedOperationException("Unsupported MySQL Type for DuckDB mapping: " + type);
         }
     }
 }

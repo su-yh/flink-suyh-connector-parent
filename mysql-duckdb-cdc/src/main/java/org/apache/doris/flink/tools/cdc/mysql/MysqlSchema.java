@@ -29,8 +29,8 @@ public class MysqlSchema extends JdbcSourceSchema {
         super(metaData, databaseName, null, tableName, tableComment);
     }
 
-    public String convertToDorisType(String fieldType, Integer precision, Integer scale) {
-        return MysqlType.toDorisType(fieldType, precision, scale);
+    public String convertToDuckdbType(String fieldType, Integer precision, Integer scale) {
+        return MysqlType.toDuckdbType(fieldType, precision, scale);
     }
 
     @Override
