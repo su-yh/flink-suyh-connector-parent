@@ -17,6 +17,7 @@
 
 package org.apache.duckdb.sink;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.cdc.duckdb.component.JavassistDynamicClassGenerator;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.TableSchema;
@@ -44,6 +45,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
+import org.apache.ibatis.binding.MapperRegistry;
+import org.apache.ibatis.session.SqlSession;
+import org.apache.ibatis.session.SqlSessionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,6 +95,9 @@ public abstract class DuckdbDatabaseSync {
     protected String tableSuffix;
     protected boolean singleSink;
     protected final Map<String, String> tableMapping = new HashMap<>();
+    protected final Map<String, Class<?>> tableEntityMapping = new HashMap<>();
+    protected final Map<String, BaseMapper<?>> tableMapperMapping = new HashMap<>();
+    protected final SqlSessionFactory sqlSessionFactory;
 
     public abstract void registerDriver() throws SQLException;
 
@@ -103,7 +110,8 @@ public abstract class DuckdbDatabaseSync {
     /** Get the prefix of a specific tableList, for example, mysql is database, oracle is schema. */
     public abstract String getTableListPrefix();
 
-    protected DuckdbDatabaseSync() throws SQLException {
+    protected DuckdbDatabaseSync(SqlSessionFactory sqlSessionFactory) throws SQLException {
+        this.sqlSessionFactory = sqlSessionFactory;
         registerDriver();
     }
 
@@ -131,6 +139,9 @@ public abstract class DuckdbDatabaseSync {
         List<String> syncTables = new ArrayList<>();
         List<Tuple2<String, String>> dorisTables = new ArrayList<>();
 
+        org.apache.ibatis.session.Configuration configuration = sqlSessionFactory.getConfiguration();
+        MapperRegistry mapperRegistry = configuration.getMapperRegistry();
+
         Set<String> targetDbSet = new HashSet<>();
         for (SourceSchema schema : schemaList) {
             List<String> primaryKeys = schema.getPrimaryKeys();
@@ -139,7 +150,15 @@ public abstract class DuckdbDatabaseSync {
             // suyh - OK
             Class<?> entityClass = JavassistDynamicClassGenerator.generateDynamicEntity(schema, "com.cdc.duckdb.mp.entity", schema.getTableName() + "_entity");
             Class<?> mapperClass = JavassistDynamicClassGenerator.generateDynamicMapper("com.cdc.duckdb.mp.mapper", schema.getTableName() + "_mapper", entityClass);
+            tableEntityMapping.put(schema.getTableName(), entityClass);
 
+            mapperRegistry.addMapper(mapperClass); // 注册到MyBatis（必须）
+            try (SqlSession sqlSession = sqlSessionFactory.openSession(true)) { // 自动提交事务 TODO: suyh - 这里是否需要按自动提交事务来控制。
+                BaseMapper baseMapper = (BaseMapper) sqlSession.getMapper(mapperClass);
+                tableMapperMapping.put(schema.getTableName(), baseMapper);
+
+                // baseMapper.createTableIfNotExists();
+            }
 
             syncTables.add(schema.getTableName());
             String targetDb = database;

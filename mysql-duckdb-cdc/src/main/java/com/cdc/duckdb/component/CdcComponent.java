@@ -19,12 +19,15 @@ import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
-import org.springframework.beans.factory.InitializingBean;
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.Resource;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -39,7 +42,7 @@ import java.util.concurrent.TimeUnit;
  */
 @Component
 @Slf4j
-public class CdcComponent implements InitializingBean {
+public class CdcComponent implements ApplicationRunner {
     public static String[] args = null;
 
     private static final List<String> EMPTY_KEYS =
@@ -47,11 +50,14 @@ public class CdcComponent implements InitializingBean {
 
     private JobClient jobClient;
 
+    @Resource
+    private SqlSessionFactory sqlSessionFactory;    // 多数据源，不影响该bean 对象的注入。
+
     @Override
-    public void afterPropertiesSet() throws Exception {
+    public void run(ApplicationArguments appArgs) throws Exception {
         String[] opArgs = Arrays.copyOfRange(args, 1, args.length);
         MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
-        jobClient = createMySQLSyncDuckdb(params);
+        jobClient = createMySQLSyncDuckdb(params, this.sqlSessionFactory);
     }
 
     @EventListener(ContextClosedEvent.class)
@@ -95,11 +101,11 @@ public class CdcComponent implements InitializingBean {
     }
 
     @NonNull
-    private static JobClient createMySQLSyncDuckdb(MultipleParameterTool params) throws Exception {
+    private static JobClient createMySQLSyncDuckdb(MultipleParameterTool params, SqlSessionFactory sqlSessionFactory) throws Exception {
         Preconditions.checkArgument(params.has(DatabaseSyncConfig.MYSQL_CONF));
         Map<String, String> mysqlMap = getConfigMap(params, DatabaseSyncConfig.MYSQL_CONF);
         Configuration mysqlConfig = Configuration.fromMap(mysqlMap);
-        DuckdbDatabaseSync databaseSync = new DuckdbMysqlDatabaseSync();
+        DuckdbDatabaseSync databaseSync = new DuckdbMysqlDatabaseSync(sqlSessionFactory);
        return syncDuckdb(params, databaseSync, mysqlConfig, SourceConnector.MYSQL);
     }
 

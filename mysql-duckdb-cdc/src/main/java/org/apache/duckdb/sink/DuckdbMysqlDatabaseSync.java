@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
+import org.apache.ibatis.session.SqlSessionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,8 +62,8 @@ public class DuckdbMysqlDatabaseSync extends DuckdbDatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(DuckdbMysqlDatabaseSync.class);
     private static final String JDBC_URL = "jdbc:mysql://%s:%d?useInformationSchema=true";
 
-    public DuckdbMysqlDatabaseSync() throws SQLException {
-        super();
+    public DuckdbMysqlDatabaseSync(SqlSessionFactory sqlSessionFactory) throws SQLException {
+        super(sqlSessionFactory);
     }
 
     @Override
