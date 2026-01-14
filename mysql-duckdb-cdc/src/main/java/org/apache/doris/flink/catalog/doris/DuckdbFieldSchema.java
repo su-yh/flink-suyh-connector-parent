@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @Data
 public class DuckdbFieldSchema extends FieldSchema {
     private Class<?> javaClazz;
+    private boolean primaryKey; // TODO: suyh - 是否主键
 
     public DuckdbFieldSchema(String name, String typeString, String comment, Class<?> javaClazz) {
         super(name, typeString, comment);

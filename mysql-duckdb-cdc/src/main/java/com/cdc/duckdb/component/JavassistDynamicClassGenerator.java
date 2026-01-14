@@ -1,7 +1,9 @@
 package com.cdc.duckdb.component;
 
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.cdc.duckdb.mp.ann.TbColumn;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
 import javassist.ClassPool;
 import javassist.CtClass;
@@ -11,6 +13,7 @@ import javassist.Modifier;
 import javassist.bytecode.AnnotationsAttribute;
 import javassist.bytecode.ConstPool;
 import javassist.bytecode.annotation.Annotation;
+import javassist.bytecode.annotation.BooleanMemberValue;
 import javassist.bytecode.annotation.StringMemberValue;
 import lombok.Data;
 import org.apache.doris.flink.catalog.doris.DuckdbFieldSchema;
@@ -112,26 +115,11 @@ public class JavassistDynamicClassGenerator {
         // 3. 设置成员变量修饰符为 private（符合JavaBean规范）
         ctField.setModifiers(Modifier.PRIVATE);
 
-        // ===================== 新增：为字段添加 @TableField 注解 =====================
-        // 3.1 定义 @TableField 注解的全类名（MyBatis-Plus 注解，若使用其他注解可修改路径）
-        String tableFieldAnnotationClass = "com.baomidou.mybatisplus.annotation.TableField";
-
-        // 3.2 构建注解实例（基于 ConstPool 生成，确保注解能被字节码识别）
-        Annotation tableFieldAnnotation = new Annotation(tableFieldAnnotationClass, constPool);
-
-        // 3.3 为注解设置 value 属性（值为数据库原始字段名，如 "status"、"user_id"）
-        String dbColumnName = mysqlColumn.getName(); // 数据库原始字段名（带下划线）
-        StringMemberValue valueMember = new StringMemberValue(dbColumnName, constPool);
-        tableFieldAnnotation.addMemberValue("value", valueMember);
-
-        // 3.4 （可选）添加其他 @TableField 注解属性（如 exist、fill 等，按需扩展）
-        // 示例：设置 exist = true（默认值，可省略）
-        // BooleanMemberValue existMember = new BooleanMemberValue(true, constPool);
-        // tableFieldAnnotation.addMemberValue("exist", existMember);
-
-        // 3.5 将注解绑定到 CtField 上（封装为 AnnotationsAttribute 并设置到字段属性中）
+        Annotation tableFieldAnnotationAttr = buildTableFieldAnnotation(constPool, mysqlColumn.getName());
+        Annotation tbColumnAnnotation = buildTbColumnAnnotation(constPool, mysqlColumn);
         AnnotationsAttribute fieldAnnotationAttr = new AnnotationsAttribute(constPool, AnnotationsAttribute.visibleTag);
-        fieldAnnotationAttr.setAnnotation(tableFieldAnnotation);
+        fieldAnnotationAttr.addAnnotation(tableFieldAnnotationAttr);
+        fieldAnnotationAttr.addAnnotation(tbColumnAnnotation);
         ctField.getFieldInfo().addAttribute(fieldAnnotationAttr);
         // ==========================================================================
 
@@ -140,6 +128,43 @@ public class JavassistDynamicClassGenerator {
 
         // 5. 为成员变量生成 getter/setter 方法（若不使用Lombok，可手动生成；使用Lombok可省略，这里做兼容）
         generateGetterSetter(ctEntityClass, ctField, fieldName, fieldType);
+    }
+
+    private static Annotation buildTableFieldAnnotation(ConstPool constPool, String dbColumnName) {
+        // ===================== 新增：为字段添加 @TableField 注解 =====================
+        // 3.1 定义 @TableField 注解的全类名（MyBatis-Plus 注解，若使用其他注解可修改路径）
+        String tableFieldAnnotationClass = TableField.class.getName();
+
+        // 3.2 构建注解实例（基于 ConstPool 生成，确保注解能被字节码识别）
+        Annotation tableFieldAnnotation = new Annotation(tableFieldAnnotationClass, constPool);
+
+        // 3.3 为注解设置 value 属性（值为数据库原始字段名，如 "status"、"user_id"）
+        StringMemberValue valueMember = new StringMemberValue(dbColumnName, constPool);
+        tableFieldAnnotation.addMemberValue("value", valueMember);
+
+        // 3.4 （可选）添加其他 @TableField 注解属性（如 exist、fill 等，按需扩展）
+        // 示例：设置 exist = true（默认值，可省略）
+        // BooleanMemberValue existMember = new BooleanMemberValue(true, constPool);
+        // tableFieldAnnotation.addMemberValue("exist", existMember);
+
+        return tableFieldAnnotation;
+    }
+
+    private static Annotation buildTbColumnAnnotation(ConstPool constPool, DuckdbFieldSchema mysqlColumn) {
+        String tbColumnAnnotationClass = TbColumn.class.getName();
+        Annotation tbColumnAnnotation = new Annotation(tbColumnAnnotationClass, constPool);
+
+        // 示例：@TbColumn(value = "id", type = "BIGINT", primaryKey = true)
+        StringMemberValue valueMember = new StringMemberValue(mysqlColumn.getName(), constPool);
+        tbColumnAnnotation.addMemberValue("value", valueMember);
+        StringMemberValue typeMember = new StringMemberValue(mysqlColumn.getTypeString(), constPool);
+        tbColumnAnnotation.addMemberValue("type", typeMember);
+        BooleanMemberValue primaryKeyMember = new BooleanMemberValue(mysqlColumn.isPrimaryKey(), constPool);
+        tbColumnAnnotation.addMemberValue("primaryKey", primaryKeyMember);
+        BooleanMemberValue enableMember = new BooleanMemberValue(true, constPool);
+        tbColumnAnnotation.addMemberValue("enable", enableMember);
+
+        return tbColumnAnnotation;
     }
 
     /**
