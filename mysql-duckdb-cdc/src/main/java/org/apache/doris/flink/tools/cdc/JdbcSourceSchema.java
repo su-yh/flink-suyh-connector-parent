@@ -47,14 +47,14 @@ public abstract class JdbcSourceSchema extends SourceSchema {
             String tableComment)
             throws Exception {
         super(databaseName, schemaName, tableName, tableComment);
-        duckdbFields = getColumnInfo(metaData, databaseName, schemaName, tableName);
-        fields = duckdbFields == null ? null : new LinkedHashMap<>(duckdbFields);
         primaryKeys = getPrimaryKeys(metaData, databaseName, schemaName, tableName);
+        duckdbFields = getColumnInfo(metaData, databaseName, schemaName, tableName, primaryKeys);
+        fields = duckdbFields == null ? null : new LinkedHashMap<>(duckdbFields);
         uniqueIndexs = getUniqIndex(metaData, databaseName, schemaName, tableName);
     }
 
     public LinkedHashMap<String, DuckdbFieldSchema> getColumnInfo(
-            DatabaseMetaData metaData, String databaseName, String schemaName, String tableName)
+            DatabaseMetaData metaData, String databaseName, String schemaName, String tableName, List<String> primaryKeys)
             throws SQLException {
         LinkedHashMap<String, DuckdbFieldSchema> fields = new LinkedHashMap<>();
         LOG.debug("Starting to get column info for table: {}", tableName);
@@ -80,7 +80,8 @@ public abstract class JdbcSourceSchema extends SourceSchema {
                 } catch (UnsupportedOperationException e) {
                     throw new UnsupportedOperationException(e + " in table: " + tableName);
                 }
-                fields.put(fieldName, new DuckdbFieldSchema(fieldName, duckdbTypeStr, comment, javaClass));
+                boolean primaryKey = primaryKeys.contains(fieldName);
+                fields.put(fieldName, new DuckdbFieldSchema(fieldName, duckdbTypeStr, comment, javaClass, primaryKey));
             }
         }
         Preconditions.checkArgument(!fields.isEmpty(), "The column info of {} is empty", tableName);

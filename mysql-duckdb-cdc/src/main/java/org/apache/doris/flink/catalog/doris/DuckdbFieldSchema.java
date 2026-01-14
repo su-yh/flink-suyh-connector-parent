@@ -1,21 +1,20 @@
 package org.apache.doris.flink.catalog.doris;
 
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 /**
  * @author suyh
  * @since 2026-01-13
  */
-@NoArgsConstructor
 @Data
 public class DuckdbFieldSchema extends FieldSchema {
-    private Class<?> javaClazz;
-    private boolean primaryKey; // TODO: suyh - 是否主键
+    private final Class<?> javaClazz;
+    private final boolean primaryKey; // TODO: suyh - 是否主键
 
-    public DuckdbFieldSchema(String name, String typeString, String comment, Class<?> javaClazz) {
+    public DuckdbFieldSchema(String name, String typeString, String comment, Class<?> javaClazz, boolean primaryKey) {
         super(name, typeString, comment);
 
         this.javaClazz = javaClazz;
+        this.primaryKey = primaryKey;
     }
 }
