@@ -42,7 +42,7 @@ public class UpsertEntities extends AbstractMethod {
         InjectorUtils.extractDuckdbColumnType(columns, fieldNames, modelClass);
 
         String sqlScript = buildUpsertSqlScript(tableName, columns, fieldNames);
-        log.info("upsertEntities, sql script: \n{}", sqlScript);
+        log.debug("upsertEntities, sql script: \n{}", sqlScript);
 
         SqlSource sqlSource = languageDriver.createSqlSource(configuration, sqlScript, Collection.class);
         return this.addInsertMappedStatement(

@@ -1,5 +1,6 @@
 package org.apache.duckdb.sink;
 
+import com.cdc.duckdb.component.DuckdbMapperManagerComponent;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.StatefulSink;
@@ -13,12 +14,17 @@ import java.util.Collections;
 public class DuckDBSink implements
         TwoPhaseCommittingSink<RecordDto, DuckDBCommittable>,
         StatefulSink<RecordDto, DuckDBWriterState> {
+    private final DuckdbMapperManagerComponent duckdbMapperManagerComponent;
+
+    public DuckDBSink(DuckdbMapperManagerComponent duckdbMapperManagerComponent) {
+        this.duckdbMapperManagerComponent = duckdbMapperManagerComponent;
+    }
 
     // suyh - 首次运行，也就是说没有从checkpoint 启动。
     @Override // 满足 StatefulSink
     public DuckDBWriter createWriter(InitContext context) {
         log.info("suyh - createWriter");
-        return new DuckDBWriter(Collections.emptyList());
+        return new DuckDBWriter(Collections.emptyList(), duckdbMapperManagerComponent);
     }
 
     // suyh - 非首次运行，也就是说从checkpoint 启动
@@ -26,7 +32,7 @@ public class DuckDBSink implements
     public StatefulSinkWriter<RecordDto, DuckDBWriterState> restoreWriter(
             InitContext context, Collection<DuckDBWriterState> recoveredState) {
         log.info("suyh - restoreWriter");
-        return new DuckDBWriter(recoveredState);
+        return new DuckDBWriter(recoveredState, duckdbMapperManagerComponent);
     }
 
     @Override // 满足 TwoPhaseCommittingSink

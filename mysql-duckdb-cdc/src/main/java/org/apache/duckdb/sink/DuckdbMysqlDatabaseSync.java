@@ -17,6 +17,7 @@
 
 package org.apache.duckdb.sink;
 
+import com.cdc.duckdb.component.DuckdbMapperManagerComponent;
 import org.apache.doris.flink.catalog.doris.DataModel;
 import org.apache.doris.flink.tools.cdc.DatabaseSyncConfig;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
@@ -39,10 +40,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
-import org.apache.ibatis.session.SqlSessionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.support.GenericApplicationContext;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -63,8 +62,8 @@ public class DuckdbMysqlDatabaseSync extends DuckdbDatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(DuckdbMysqlDatabaseSync.class);
     private static final String JDBC_URL = "jdbc:mysql://%s:%d?useInformationSchema=true";
 
-    public DuckdbMysqlDatabaseSync(SqlSessionFactory sqlSessionFactory, GenericApplicationContext genericApplicationContext) throws SQLException {
-        super(sqlSessionFactory, genericApplicationContext);
+    public DuckdbMysqlDatabaseSync(DuckdbMapperManagerComponent duckdbMapperManagerComponent) throws SQLException {
+        super(duckdbMapperManagerComponent);
     }
 
     @Override

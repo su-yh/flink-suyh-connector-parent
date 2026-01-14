@@ -1,5 +1,6 @@
 package org.apache.duckdb.sink;
 
+import com.cdc.duckdb.component.DuckdbMapperManagerComponent;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.slf4j.Logger;
@@ -15,13 +16,16 @@ public class DuckDBWriter implements
 
     private static final Logger LOG = LoggerFactory.getLogger(DuckDBWriter.class);
     private long lastCkId = 0;
+    private final DuckdbMapperManagerComponent duckdbMapperManagerComponent;
 
-    public DuckDBWriter(Iterable<DuckDBWriterState> states) {
+    public DuckDBWriter(Iterable<DuckDBWriterState> states, DuckdbMapperManagerComponent duckdbMapperManagerComponent) {
         // 模拟恢复逻辑
         for (DuckDBWriterState state : states) {
             this.lastCkId = state.lastCheckpointId;
             LOG.debug("检测到恢复状态，从 Checkpoint {} 恢复中...", lastCkId);
         }
+
+        this.duckdbMapperManagerComponent = duckdbMapperManagerComponent;
     }
 
     @Override
@@ -29,6 +33,13 @@ public class DuckDBWriter implements
         LOG.debug("接收到数据 (准备写入缓存): {}", recordDto);
         LOG.info("接收到数据 (准备写入缓存)，suyh - database: {}, table: {}",
                 recordDto.getSource().getDb(), recordDto.getSource().getTable());
+        // TODO: suyh - 待实现！！！
+        try {
+            duckdbMapperManagerComponent.upsertEntity(recordDto);
+        } catch (InstantiationException | IllegalAccessException e) {
+            LOG.error("upsertEntity failed.", e);
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

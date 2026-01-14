@@ -22,8 +22,6 @@ public @interface TbColumn {
      */
     String value();
 
-    boolean enable() default true;
-
     /**
      * 字段数据类型（如 VARCHAR(32)、BIGINT、DECIMAL(18,2)）
      */
