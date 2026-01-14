@@ -55,7 +55,7 @@ public class CreateTableIfNotExists extends AbstractMethod {
                 continue;
             }
 
-            columDefine.add(column.value() + " " + column.type());
+            columDefine.add('"' + column.value() + '"' + " " + column.type());
 
             if (column.primaryKey()) {
                 primaryKeys.add(column.value());

@@ -42,6 +42,7 @@ import org.apache.flink.util.StringUtils;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.support.GenericApplicationContext;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -62,8 +63,8 @@ public class DuckdbMysqlDatabaseSync extends DuckdbDatabaseSync {
     private static final Logger LOG = LoggerFactory.getLogger(DuckdbMysqlDatabaseSync.class);
     private static final String JDBC_URL = "jdbc:mysql://%s:%d?useInformationSchema=true";
 
-    public DuckdbMysqlDatabaseSync(SqlSessionFactory sqlSessionFactory) throws SQLException {
-        super(sqlSessionFactory);
+    public DuckdbMysqlDatabaseSync(SqlSessionFactory sqlSessionFactory, GenericApplicationContext genericApplicationContext) throws SQLException {
+        super(sqlSessionFactory, genericApplicationContext);
     }
 
     @Override

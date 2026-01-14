@@ -24,6 +24,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
@@ -52,12 +53,14 @@ public class CdcComponent implements ApplicationRunner {
 
     @Resource
     private SqlSessionFactory sqlSessionFactory;    // 多数据源，不影响该bean 对象的注入。
+    @Resource
+    private GenericApplicationContext genericApplicationContext;
 
     @Override
     public void run(ApplicationArguments appArgs) throws Exception {
         String[] opArgs = Arrays.copyOfRange(args, 1, args.length);
         MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
-        jobClient = createMySQLSyncDuckdb(params, this.sqlSessionFactory);
+        jobClient = createMySQLSyncDuckdb(params, this.sqlSessionFactory, genericApplicationContext);
     }
 
     @EventListener(ContextClosedEvent.class)
@@ -101,11 +104,11 @@ public class CdcComponent implements ApplicationRunner {
     }
 
     @NonNull
-    private static JobClient createMySQLSyncDuckdb(MultipleParameterTool params, SqlSessionFactory sqlSessionFactory) throws Exception {
+    private static JobClient createMySQLSyncDuckdb(MultipleParameterTool params, SqlSessionFactory sqlSessionFactory, GenericApplicationContext genericApplicationContext) throws Exception {
         Preconditions.checkArgument(params.has(DatabaseSyncConfig.MYSQL_CONF));
         Map<String, String> mysqlMap = getConfigMap(params, DatabaseSyncConfig.MYSQL_CONF);
         Configuration mysqlConfig = Configuration.fromMap(mysqlMap);
-        DuckdbDatabaseSync databaseSync = new DuckdbMysqlDatabaseSync(sqlSessionFactory);
+        DuckdbDatabaseSync databaseSync = new DuckdbMysqlDatabaseSync(sqlSessionFactory, genericApplicationContext);
        return syncDuckdb(params, databaseSync, mysqlConfig, SourceConnector.MYSQL);
     }
 

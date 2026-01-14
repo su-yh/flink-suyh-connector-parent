@@ -11,5 +11,7 @@ public interface DataSourceNames {
 
 	String PAYMENT_MYSQL= "payment-master-mysql";
 	String PAYMENT_SLAVE_MYSQL= "payment-slave-mysql";
+
+	String STATISTICAL_ANALYSIS_DUCK = "statistical-analysis-duck";
 }
 

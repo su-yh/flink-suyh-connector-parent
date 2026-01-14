@@ -20,6 +20,8 @@ public enum DataSourceEnums {
     PAYMENT_MYSQL(DataSourceNames.PAYMENT_MYSQL),
     PAYMENT_SLAVE_MYSQL(DataSourceNames.PAYMENT_SLAVE_MYSQL),
 
+    STATISTICAL_ANALYSIS_DUCK(DataSourceNames.STATISTICAL_ANALYSIS_DUCK),
+
     ;
 
     private final String code;

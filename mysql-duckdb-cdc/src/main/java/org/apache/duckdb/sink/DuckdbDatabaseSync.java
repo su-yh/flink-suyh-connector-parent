@@ -19,6 +19,7 @@ package org.apache.duckdb.sink;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.cdc.duckdb.component.JavassistDynamicClassGenerator;
+import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
@@ -50,6 +51,7 @@ import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.support.GenericApplicationContext;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -98,6 +100,7 @@ public abstract class DuckdbDatabaseSync {
     protected final Map<String, Class<?>> tableEntityMapping = new HashMap<>();
     protected final Map<String, BaseMapper<?>> tableMapperMapping = new HashMap<>();
     protected final SqlSessionFactory sqlSessionFactory;
+    protected final GenericApplicationContext genericApplicationContext;
 
     public abstract void registerDriver() throws SQLException;
 
@@ -110,8 +113,9 @@ public abstract class DuckdbDatabaseSync {
     /** Get the prefix of a specific tableList, for example, mysql is database, oracle is schema. */
     public abstract String getTableListPrefix();
 
-    protected DuckdbDatabaseSync(SqlSessionFactory sqlSessionFactory) throws SQLException {
+    protected DuckdbDatabaseSync(SqlSessionFactory sqlSessionFactory, GenericApplicationContext genericApplicationContext) throws SQLException {
         this.sqlSessionFactory = sqlSessionFactory;
+        this.genericApplicationContext = genericApplicationContext;
         registerDriver();
     }
 
@@ -154,10 +158,14 @@ public abstract class DuckdbDatabaseSync {
 
             mapperRegistry.addMapper(mapperClass); // 注册到MyBatis（必须）
             try (SqlSession sqlSession = sqlSessionFactory.openSession(true)) { // 自动提交事务 TODO: suyh - 这里是否需要按自动提交事务来控制。
-                BaseMapper baseMapper = (BaseMapper) sqlSession.getMapper(mapperClass);
+                BaseMapperDuckdb baseMapper = (BaseMapperDuckdb) sqlSession.getMapper(mapperClass); // 生成代理类对象实例
                 tableMapperMapping.put(schema.getTableName(), baseMapper);
 
-                // baseMapper.createTableIfNotExists();
+                String beanName = baseMapper.getClass().getSimpleName();
+                genericApplicationContext.registerBean(beanName, BaseMapperDuckdb.class, () -> baseMapper);
+
+                BaseMapperDuckdb baseMapperBean = genericApplicationContext.getBean(beanName, BaseMapperDuckdb.class);
+                baseMapperBean.createTableIfNotExists();
             }
 
             syncTables.add(schema.getTableName());

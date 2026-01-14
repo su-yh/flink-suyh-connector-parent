@@ -49,7 +49,12 @@ spring:
         username: suyh_cem_payment
         password: suyh_cem_payment
         driver-class-name: com.mysql.cj.jdbc.Driver
-
+      statistical-analysis-duck:
+        jdbc-url: "jdbc:duckdb:/tmp/cem-db/analytics.db"
+        driver-class-name: org.duckdb.DuckDBDriver
+        # DuckDB建议小连接池
+        maximum-pool-size: 8
+        minimum-idle: 1
 
 
 
