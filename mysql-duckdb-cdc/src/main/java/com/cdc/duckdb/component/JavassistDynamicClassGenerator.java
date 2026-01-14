@@ -2,7 +2,7 @@ package com.cdc.duckdb.component;
 
 
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtField;
@@ -57,7 +57,7 @@ public class JavassistDynamicClassGenerator {
             generateEntityField(ctEntityClass, column);
         }
 
-        // ctEntityClass.writeFile("./debug"); // TODO: suyh - 测试，验证结果。这是会生成java 文件，还是生成class 文件
+        ctEntityClass.writeFile("./debug"); // TODO: suyh - 测试，验证结果。这是会生成java 文件，还是生成class 文件
 
         // 6. 将 CtClass 转换为实际的 Class 对象并返回
         return ctEntityClass.toClass();
@@ -192,8 +192,8 @@ public class JavassistDynamicClassGenerator {
         try {
             ClassPool pool = ClassPool.getDefault();
 
-            // 1. 获取 BaseMapper 的 CtClass
-            CtClass baseMapperCt = pool.get(BaseMapper.class.getName());
+            // 1. 获取 BaseMapperDuckdb 的 CtClass
+            CtClass baseMapperCt = pool.get(BaseMapperDuckdb.class.getName());
 
             // 2. 构建 Mapper 接口的完整类名
             String fullMapperClassName = mapperPackage + "." + mapperClassName;
@@ -203,7 +203,7 @@ public class JavassistDynamicClassGenerator {
             SignatureAttribute.ClassSignature ac = new SignatureAttribute.ClassSignature(
                     null, null,
                     new SignatureAttribute.ClassType[]{
-                            new SignatureAttribute.ClassType(BaseMapper.class.getName(),
+                            new SignatureAttribute.ClassType(BaseMapperDuckdb.class.getName(),
                                     new SignatureAttribute.TypeArgument[]{
                                             new SignatureAttribute.TypeArgument(
                                                     new SignatureAttribute.ClassType(entityClass.getName())
@@ -214,7 +214,7 @@ public class JavassistDynamicClassGenerator {
             // 4. 设置泛型签名并转换为 Class
             mapperCt.setGenericSignature(ac.encode());
 
-            // mapperCt.writeFile("./debug"); // TODO: suyh - 测试，验证结果。这是会生成java 文件，还是生成class 文件
+            mapperCt.writeFile("./debug"); // TODO: suyh - 测试，验证结果。这是会生成java 文件，还是生成class 文件
 
             return mapperCt.toClass();
         } catch (Exception e) {
