@@ -43,7 +43,7 @@ import java.util.concurrent.TimeUnit;
  */
 @Component
 @Slf4j
-public class CdcComponent implements ApplicationRunner {
+public class CdcRunner implements ApplicationRunner {
     public static String[] args = null;
 
     private static final List<String> EMPTY_KEYS =
