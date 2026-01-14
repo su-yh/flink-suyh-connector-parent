@@ -16,16 +16,15 @@ public class DuckDBWriter implements
 
     private static final Logger LOG = LoggerFactory.getLogger(DuckDBWriter.class);
     private long lastCkId = 0;
-    private final DuckdbMapperManagerComponent duckdbMapperManagerComponent;
+    // TODO: suyh - 这个对象，该如何传入？
+    public static DuckdbMapperManagerComponent duckdbMapperManagerComponent;
 
-    public DuckDBWriter(Iterable<DuckDBWriterState> states, DuckdbMapperManagerComponent duckdbMapperManagerComponent) {
+    public DuckDBWriter(Iterable<DuckDBWriterState> states) {
         // 模拟恢复逻辑
         for (DuckDBWriterState state : states) {
             this.lastCkId = state.lastCheckpointId;
             LOG.debug("检测到恢复状态，从 Checkpoint {} 恢复中...", lastCkId);
         }
-
-        this.duckdbMapperManagerComponent = duckdbMapperManagerComponent;
     }
 
     @Override

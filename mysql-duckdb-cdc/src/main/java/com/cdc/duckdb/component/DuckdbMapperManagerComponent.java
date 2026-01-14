@@ -5,6 +5,7 @@ import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
+import org.apache.duckdb.sink.DuckDBWriter;
 import org.apache.duckdb.sink.RecordDto;
 import org.apache.ibatis.binding.MapperRegistry;
 import org.apache.ibatis.session.Configuration;
@@ -12,6 +13,7 @@ import org.apache.ibatis.session.SqlSessionFactory;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Collections;
@@ -32,6 +34,11 @@ public class DuckdbMapperManagerComponent {
     private final Map<String, Class<?>> tableEntityMapping = new ConcurrentHashMap<>();
     // 每一张表对应的spring 容器中的 mapper bean 对象
     private final Map<String, BaseMapperDuckdb<?>> mapperBeanMapping = new ConcurrentHashMap<>();
+
+    @PostConstruct
+    public void init() {
+        DuckDBWriter.duckdbMapperManagerComponent = this;
+    }
 
     public void registerMapperBean(SourceSchema schema) throws Exception {
         String tableName = schema.getTableName();
