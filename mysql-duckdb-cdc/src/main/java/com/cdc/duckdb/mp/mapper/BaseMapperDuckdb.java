@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.cdc.duckdb.config.datasource.DataSourceNames;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * @author suyh
@@ -17,6 +19,15 @@ public interface BaseMapperDuckdb<T> extends BaseMapper<T> {
 
     void createTableIfNotExists();
     void upsertEntities(@Param(ENTITIES) Collection<T> entities);
+
+    default void upsertObjects(Collection<?> objs) {
+        List<T> entities = new ArrayList<>();
+        for (Object obj : objs) {
+            entities.add((T)obj);
+        }
+
+        upsertEntities(entities);
+    }
 }
 
 

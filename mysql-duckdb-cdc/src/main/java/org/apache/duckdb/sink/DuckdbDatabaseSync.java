@@ -17,8 +17,7 @@
 
 package org.apache.duckdb.sink;
 
-import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.cdc.duckdb.component.JavassistDynamicClassGenerator;
+import com.cdc.duckdb.component.DuckdbMapperManagerComponent;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.TableSchema;
@@ -46,12 +45,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
-import org.apache.ibatis.binding.MapperRegistry;
-import org.apache.ibatis.session.SqlSession;
-import org.apache.ibatis.session.SqlSessionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.support.GenericApplicationContext;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -97,10 +92,7 @@ public abstract class DuckdbDatabaseSync {
     protected String tableSuffix;
     protected boolean singleSink;
     protected final Map<String, String> tableMapping = new HashMap<>();
-    protected final Map<String, Class<?>> tableEntityMapping = new HashMap<>();
-    protected final Map<String, BaseMapper<?>> tableMapperMapping = new HashMap<>();
-    protected final SqlSessionFactory sqlSessionFactory;
-    protected final GenericApplicationContext genericApplicationContext;
+    protected final DuckdbMapperManagerComponent duckdbMapperManagerComponent;
 
     public abstract void registerDriver() throws SQLException;
 
@@ -113,9 +105,8 @@ public abstract class DuckdbDatabaseSync {
     /** Get the prefix of a specific tableList, for example, mysql is database, oracle is schema. */
     public abstract String getTableListPrefix();
 
-    protected DuckdbDatabaseSync(SqlSessionFactory sqlSessionFactory, GenericApplicationContext genericApplicationContext) throws SQLException {
-        this.sqlSessionFactory = sqlSessionFactory;
-        this.genericApplicationContext = genericApplicationContext;
+    protected DuckdbDatabaseSync(DuckdbMapperManagerComponent duckdbMapperManagerComponent) throws SQLException {
+        this.duckdbMapperManagerComponent = duckdbMapperManagerComponent;
         registerDriver();
     }
 
@@ -143,30 +134,15 @@ public abstract class DuckdbDatabaseSync {
         List<String> syncTables = new ArrayList<>();
         List<Tuple2<String, String>> dorisTables = new ArrayList<>();
 
-        org.apache.ibatis.session.Configuration configuration = sqlSessionFactory.getConfiguration();
-        MapperRegistry mapperRegistry = configuration.getMapperRegistry();
 
         Set<String> targetDbSet = new HashSet<>();
         for (SourceSchema schema : schemaList) {
             List<String> primaryKeys = schema.getPrimaryKeys();
             LOG.info("表 {} 的主键是: {}", schema.getTableName(), primaryKeys);
 
-            // suyh - OK
-            Class<?> entityClass = JavassistDynamicClassGenerator.generateDynamicEntity(schema, "com.cdc.duckdb.mp.entity", schema.getTableName() + "_entity");
-            Class<?> mapperClass = JavassistDynamicClassGenerator.generateDynamicMapper("com.cdc.duckdb.mp.mapper", schema.getTableName() + "_mapper", entityClass);
-            tableEntityMapping.put(schema.getTableName(), entityClass);
-
-            mapperRegistry.addMapper(mapperClass); // 注册到MyBatis（必须）
-            try (SqlSession sqlSession = sqlSessionFactory.openSession(true)) { // 自动提交事务 TODO: suyh - 这里是否需要按自动提交事务来控制。
-                BaseMapperDuckdb baseMapper = (BaseMapperDuckdb) sqlSession.getMapper(mapperClass); // 生成代理类对象实例
-                tableMapperMapping.put(schema.getTableName(), baseMapper);
-
-                String beanName = baseMapper.getClass().getSimpleName();
-                genericApplicationContext.registerBean(beanName, BaseMapperDuckdb.class, () -> baseMapper);
-
-                BaseMapperDuckdb baseMapperBean = genericApplicationContext.getBean(beanName, BaseMapperDuckdb.class);
-                baseMapperBean.createTableIfNotExists();
-            }
+            duckdbMapperManagerComponent.registerMapperBean(schema);
+            BaseMapperDuckdb<?> baseMapperBean = duckdbMapperManagerComponent.getMapperBean(schema.getTableName());
+            baseMapperBean.createTableIfNotExists();
 
             syncTables.add(schema.getTableName());
             String targetDb = database;
@@ -219,6 +195,7 @@ public abstract class DuckdbDatabaseSync {
             }
         });
 
+        // TODO: suyh - 还是要按表进行分流，每个表一个sink，类似doris 那样，因为那样就可以攒批插入了。
         SingleOutputStreamOperator<RecordDto> filterDataSource = recordDtoDataSource.filter(Objects::nonNull);
         filterDataSource.sinkTo(new DuckDBSink());
         return true;

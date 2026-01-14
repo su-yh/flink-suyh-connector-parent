@@ -50,10 +50,6 @@ public class CreateTableIfNotExists extends AbstractMethod {
         List<String> primaryKeys = new ArrayList<>();
 
         for (TbColumn column : columns) {
-            if (!column.enable()) {
-                continue;
-            }
-
             columDefine.add('"' + column.value() + '"' + " " + column.type());
 
             if (column.primaryKey()) {

@@ -3,6 +3,7 @@ package com.cdc.duckdb.mp.injector.methods;
 import com.cdc.duckdb.mp.ann.TbColumn;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.List;
 
 /**
@@ -25,7 +26,7 @@ public class InjectorUtils {
         // 步骤2：遍历当前类的所有属性
         for (Field field : fields) {
             // 优化点1：跳过静态属性（判断字段是否包含 static 修饰符）
-            if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
+            if (Modifier.isStatic(field.getModifiers())) {
                 continue; // 直接跳过，不处理静态属性
             }
 
@@ -33,7 +34,7 @@ public class InjectorUtils {
             if (field.isAnnotationPresent(TbColumn.class)) {
                 // 步骤4：获取注解实例（无需手动处理权限，注解获取不受属性访问修饰符影响）
                 TbColumn tbColumn = field.getAnnotation(TbColumn.class);
-                if (columns != null) {
+                if (columns != null && tbColumn != null) {
                     columns.add(tbColumn);
                 }
                 if (fieldNames != null) {
