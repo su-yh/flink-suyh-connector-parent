@@ -17,14 +17,12 @@
 
 package org.apache.doris.flink.tools.cdc.mysql;
 
+import org.apache.doris.flink.catalog.doris.DorisType;
 import org.apache.doris.flink.tools.cdc.DuckdbType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.doris.flink.catalog.doris.DorisType;
-
 import java.math.BigDecimal;
-import java.util.Date;
 
 import static org.apache.doris.flink.catalog.DorisTypeMapper.MAX_SUPPORTED_DATE_TIME_PRECISION;
 
@@ -426,7 +424,7 @@ public class MysqlType {
             case TIME:
             case DATETIME:
             case TIMESTAMP:
-                return Date.class;
+                // return Date.class; // 时间相关的都使用字符串来处理，免去时区的问题 // TODO: suyh - 是否可行，插入与更新是首先的，但最重要的还是查询。特别是带小数精度的
             case CHAR:
             case VARCHAR:
             case TINYTEXT:
