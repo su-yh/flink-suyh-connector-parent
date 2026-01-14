@@ -216,25 +216,6 @@ public abstract class DuckdbDatabaseSync {
         return true;
     }
 
-    /**
-     * @param targetDbSet The set of target databases.
-     * @param dbTbl The database-table tuple.
-     * @return The UID of the DataStream.
-     */
-    public String getUidName(Set<String> targetDbSet, Tuple2<String, String> dbTbl) {
-        String uidName;
-        // Determine whether to proceed with multi-database synchronization.
-        // if yes, the UID is composed of `dbname_tablename`, otherwise it is composed of
-        // `tablename`.
-        if (targetDbSet.size() > 1) {
-            uidName = dbTbl.f0 + "_" + dbTbl.f1;
-        } else {
-            uidName = dbTbl.f1;
-        }
-
-        return uidName;
-    }
-
     private DorisConnectionOptions getDorisConnectionOptions() {
         String fenodes = sinkConfig.getString(DorisConfigOptions.FENODES);
         String benodes = sinkConfig.getString(DorisConfigOptions.BENODES);
