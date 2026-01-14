@@ -3,6 +3,7 @@ package com.cdc.duckdb.mp.config;
 import com.baomidou.mybatisplus.core.injector.ISqlInjector;
 import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
+import com.cdc.duckdb.mp.handler.SqlHandler;
 import com.cdc.duckdb.mp.injector.GlobalSqlInjector;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,5 +31,11 @@ public class MybatisPlusConfiguration {
     @Bean
     public ISqlInjector sqlInjector() {
         return new GlobalSqlInjector();
+    }
+
+    @Bean
+    public SqlHandler sqlHandler() {
+        SqlHandler.PLUS_LOG_ENABLED = true;
+        return new SqlHandler();
     }
 }
