@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -80,14 +81,13 @@ public class DuckdbMapperManagerComponent {
         Field[] fields = modelClass.getDeclaredFields();
 
         for (Field field : fields) {
-            // 优化点1：跳过静态属性（判断字段是否包含 static 修饰符）
+            // 跳过静态属性
             if (Modifier.isStatic(field.getModifiers())) {
-                continue; // 直接跳过，不处理静态属性
+                continue;
             }
 
-            // 步骤3：判断当前属性是否存在 @TbColumn 注解
+            // 判断 @TbColumn 注解
             if (field.isAnnotationPresent(TbColumn.class)) {
-                // 步骤4：获取注解实例（无需手动处理权限，注解获取不受属性访问修饰符影响）
                 TbColumn tbColumn = field.getAnnotation(TbColumn.class);
                 if (tbColumn == null) {
                     continue;
@@ -99,13 +99,33 @@ public class DuckdbMapperManagerComponent {
             String fieldName = field.getName();
             Object value = properties.get(fieldName);
 
-            field.set(entity, value);
+            if (value != null) {
+                Class<?> fieldType = field.getType();
+                if (BigDecimal.class.equals(fieldType)) {
+                    if (value instanceof Number) {
+                        Number numberValue = (Number) value;
+                        value = BigDecimal.valueOf(numberValue.doubleValue());
+                    } else if (value instanceof String) {
+                        try {
+                            String strValue = (String) value;
+                            value = new BigDecimal(strValue);
+                        } catch (NumberFormatException e) {
+                            throw new IllegalArgumentException("字符串无法转换为有效BigDecimal，字段名：" + field.getName() + "，待转换值：" + value, e);
+                        }
+                    }
+                }
+            }
+
+            try {
+                field.set(entity, value);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("字段赋值失败，字段名：" + fieldName + "，目标类型：" + field.getType().getName() + "，值类型：" + (value != null ? value.getClass().getName() : "null"), e);
+            }
         }
 
         Class<?> superClass = modelClass.getSuperclass();
-        // 递归终止条件：1. 父类为 null；2. 父类是 Object 类（无实际业务属性）
         if (superClass != null && superClass != Object.class) {
-            entityPropertiesSetter(superClass, entity, properties); // 递归调用，处理父类属性
+            entityPropertiesSetter(superClass, entity, properties);
         }
     }
 }
