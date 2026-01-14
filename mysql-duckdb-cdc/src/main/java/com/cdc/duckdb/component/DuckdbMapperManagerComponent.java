@@ -8,7 +8,6 @@ import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.duckdb.sink.RecordDto;
 import org.apache.ibatis.binding.MapperRegistry;
 import org.apache.ibatis.session.Configuration;
-import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.stereotype.Component;
@@ -34,7 +33,7 @@ public class DuckdbMapperManagerComponent {
     // 每一张表对应的spring 容器中的 mapper bean 对象
     private final Map<String, BaseMapperDuckdb<?>> mapperBeanMapping = new ConcurrentHashMap<>();
 
-    public BaseMapperDuckdb<?> registerMapperBean(SourceSchema schema) throws Exception {
+    public void registerMapperBean(SourceSchema schema) throws Exception {
         String tableName = schema.getTableName();
 
         Class<?> entityClass = JavassistDynamicClassGenerator.generateDynamicEntity(schema, "com.cdc.duckdb.mp.entity", schema.getTableName() + "_entity");
@@ -44,16 +43,19 @@ public class DuckdbMapperManagerComponent {
         MapperRegistry mapperRegistry = configuration.getMapperRegistry();
         mapperRegistry.addMapper(mapperClass); // 注册到MyBatis（必须）
 
-        try (SqlSession sqlSession = sqlSessionFactory.openSession(true)) { // 自动提交事务 TODO: suyh - 这里是否需要按自动提交事务来控制。
-            BaseMapperDuckdb<?> baseMapper = (BaseMapperDuckdb<?>) sqlSession.getMapper(mapperClass); // 生成代理类对象实例
-            mapperBeanMapping.put(tableName, baseMapper);
-            tableEntityMapping.put(tableName, entityClass);
+        BaseMapperDuckdb<?> baseMapper = (BaseMapperDuckdb<?>) configuration.getMapper(mapperClass, sqlSessionFactory.openSession(true));
 
-            String beanName = baseMapper.getClass().getSimpleName();
-            genericApplicationContext.registerBean(beanName, BaseMapperDuckdb.class, () -> baseMapper);
+        tableEntityMapping.put(tableName, entityClass);
 
-            return genericApplicationContext.getBean(beanName, BaseMapperDuckdb.class);
-        }
+        String beanName = baseMapper.getClass().getSimpleName();
+        genericApplicationContext.registerBean(beanName, BaseMapperDuckdb.class, () -> baseMapper);
+
+        BaseMapperDuckdb<?> baseMapperBean = genericApplicationContext.getBean(beanName, BaseMapperDuckdb.class);
+        mapperBeanMapping.put(tableName, baseMapperBean);
+    }
+
+    public BaseMapperDuckdb<?> getMapperBean(String tableName) {
+        return mapperBeanMapping.get(tableName);
     }
 
     public void upsertEntity(RecordDto recordDto) throws InstantiationException, IllegalAccessException {

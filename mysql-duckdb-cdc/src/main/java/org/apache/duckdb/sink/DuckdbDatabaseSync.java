@@ -140,7 +140,8 @@ public abstract class DuckdbDatabaseSync {
             List<String> primaryKeys = schema.getPrimaryKeys();
             LOG.info("表 {} 的主键是: {}", schema.getTableName(), primaryKeys);
 
-            BaseMapperDuckdb<?> baseMapperBean = duckdbMapperManagerComponent.registerMapperBean(schema);
+            duckdbMapperManagerComponent.registerMapperBean(schema);
+            BaseMapperDuckdb<?> baseMapperBean = duckdbMapperManagerComponent.getMapperBean(schema.getTableName());
             baseMapperBean.createTableIfNotExists();
 
             syncTables.add(schema.getTableName());
