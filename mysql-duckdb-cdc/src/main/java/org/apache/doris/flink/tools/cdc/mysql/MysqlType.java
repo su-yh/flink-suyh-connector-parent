@@ -365,8 +365,6 @@ public class MysqlType {
             case BIT:
             case BOOLEAN:
             case BOOL:
-                return Boolean.class;
-
             // 整数类型映射（兼容无符号/零填充，DuckDB 无专门无符号类型，使用更大范围整数兼容）
             case TINYINT:
             case TINYINT_UNSIGNED:

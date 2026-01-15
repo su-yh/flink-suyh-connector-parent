@@ -30,7 +30,7 @@ public class DuckDBWriter implements
     @Override
     public void write(RecordDto recordDto, Context context) throws IOException {
         LOG.debug("接收到数据 (准备写入缓存): {}", recordDto);
-        LOG.info("接收到数据 (准备写入缓存)，suyh - database: {}, table: {}",
+        LOG.debug("接收到数据 (准备写入缓存)，suyh - database: {}, table: {}",
                 recordDto.getSource().getDb(), recordDto.getSource().getTable());
         // TODO: suyh - 待实现！！！
         try {

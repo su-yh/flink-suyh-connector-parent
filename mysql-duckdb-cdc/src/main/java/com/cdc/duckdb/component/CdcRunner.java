@@ -145,6 +145,7 @@ public class CdcRunner implements ApplicationRunner {
             // 启用/禁用算子链
             configuration.setString("pipeline.operator-chaining.enabled", "false");
             configuration.setString("parallelism.default", "1");
+            configuration.setString("execution.checkpointing.min-pause", "10000");
             // configuration.setInteger("state.checkpoints.num-retained", 2);
 
             // 从checkpoint 启动
@@ -153,7 +154,7 @@ public class CdcRunner implements ApplicationRunner {
             env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration);
 
             // 1. 开启周期性Checkpoint，间隔30秒（本地调试可缩短，如5秒=5000ms）
-            env.enableCheckpointing(60000);
+            env.enableCheckpointing(60_000);
             // 2. 设置状态后端：Flink 1.18 推荐使用 HashMapStateBackend（内存管理）或 EmbeddedRocksDBStateBackend
             env.setStateBackend(new HashMapStateBackend());
             // 3. 设置 Checkpoint 存储路径（存储到本地文件系统）
@@ -168,7 +169,7 @@ public class CdcRunner implements ApplicationRunner {
             // 任务取消后保留 Checkpoint 数据（方便调试查看文件）
             ckConfig.setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
             // 设置 Checkpoint 超时时间
-            ckConfig.setCheckpointTimeout(60000);
+            ckConfig.setCheckpointTimeout(600_000);
 
             // 禁止失败重试：一旦出错，立即停止任务
             env.setRestartStrategy(RestartStrategies.noRestart());
