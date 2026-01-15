@@ -165,7 +165,8 @@ public class CdcRunner implements ApplicationRunner {
             // 4. (可选) 高级配置
             CheckpointConfig ckConfig = env.getCheckpointConfig();
             // 确保 Checkpointing 模式为 EXACTLY_ONCE（默认即是）
-            ckConfig.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+            // ckConfig.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+            ckConfig.setCheckpointingMode(CheckpointingMode.AT_LEAST_ONCE); // 至少一次
             // 任务取消后保留 Checkpoint 数据（方便调试查看文件）
             ckConfig.setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
             // 设置 Checkpoint 超时时间
