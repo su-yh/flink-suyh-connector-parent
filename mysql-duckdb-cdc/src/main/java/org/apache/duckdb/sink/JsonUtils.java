@@ -52,19 +52,8 @@ public class JsonUtils {
      * @param <T>   对象类型
      * @return 返回对象实体
      */
-    public static <T> T deserialize(String json, Class<T> clazz) {
-        return deserialize(json, clazz, OBJECT_MAPPER);
-    }
-
-    public static <T> T deserialize(String json, Class<T> clazz, ObjectMapper mapper) {
-        T res = null;
-        try {
-            res = mapper.readValue(json, clazz);
-        } catch (JsonProcessingException e) {
-            log.error("deserialize object failed. json string: " + json, e);
-        }
-
-        return res;
+    public static <T> T deserialize(String json, Class<T> clazz) throws JsonProcessingException {
+        return OBJECT_MAPPER.readValue(json, clazz);
     }
 
     /**

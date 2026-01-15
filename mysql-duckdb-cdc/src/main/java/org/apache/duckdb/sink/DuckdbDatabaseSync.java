@@ -59,6 +59,7 @@ public abstract class DuckdbDatabaseSync {
 
     protected Configuration config;
 
+    // sink 的目标要数据库名
     protected String database;
 
     protected TableNameConverter converter;
@@ -157,16 +158,10 @@ public abstract class DuckdbDatabaseSync {
                     return null;
                 }
 
-                try {
-                    return JsonUtils.deserialize(value, RecordDto.class);
-                } catch (Exception e) {
-                    LOG.error("failed: {}", e.getMessage());
-                    return null;
-                }
+                return JsonUtils.deserialize(value, RecordDto.class);
             }
         });
 
-        // TODO: suyh - 还是要按表进行分流，每个表一个sink，类似doris 那样，因为那样就可以攒批插入了。
         SingleOutputStreamOperator<RecordDto> filterDataSource = recordDtoDataSource.filter(Objects::nonNull);
         filterDataSource.sinkTo(new DuckDBSink());
         return true;
