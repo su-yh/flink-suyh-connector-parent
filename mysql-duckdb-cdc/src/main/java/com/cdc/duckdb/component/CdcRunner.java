@@ -160,7 +160,7 @@ public class CdcRunner implements ApplicationRunner {
             // 3. 设置 Checkpoint 存储路径（存储到本地文件系统）
             // 注意：Windows 环境下路径示例 "file:///D:/flink-checkpoints"
             //      Linux/Mac 环境下路径示例 "file:///tmp/flink-checkpoints"
-            env.getCheckpointConfig().setCheckpointStorage("file:///E:\\tmp\\checkpoints");
+            env.getCheckpointConfig().setCheckpointStorage("file:///E:\\tmp\\cem-cdc\\checkpoints");
 
             // 4. (可选) 高级配置
             CheckpointConfig ckConfig = env.getCheckpointConfig();
