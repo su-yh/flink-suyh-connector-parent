@@ -22,22 +22,12 @@ import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
-import org.apache.doris.flink.cfg.DorisExecutionOptions;
-import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.cfg.DorisReadOptions;
-import org.apache.doris.flink.sink.DorisSink;
 import org.apache.doris.flink.sink.schema.SchemaChangeMode;
-import org.apache.doris.flink.sink.writer.WriteMode;
-import org.apache.doris.flink.sink.writer.serializer.DorisRecordSerializer;
-import org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerializer;
 import org.apache.doris.flink.table.DorisConfigOptions;
 import org.apache.doris.flink.tools.cdc.DorisTableConfig;
-import org.apache.doris.flink.tools.cdc.ParsingProcessFunction;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.doris.flink.tools.cdc.converter.TableNameConverter;
-import org.apache.doris.flink.tools.cdc.utils.DorisTableUtil;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -91,7 +81,6 @@ public abstract class DuckdbDatabaseSync {
     protected String tablePrefix;
     protected String tableSuffix;
     protected boolean singleSink;
-    protected final Map<String, String> tableMapping = new HashMap<>();
     protected final DuckdbMapperManagerComponent duckdbMapperManagerComponent;
 
     public abstract void registerDriver() throws SQLException;
@@ -132,8 +121,6 @@ public abstract class DuckdbDatabaseSync {
             dorisSystem.createDatabase(database);
         }
         List<String> syncTables = new ArrayList<>();
-        List<Tuple2<String, String>> dorisTables = new ArrayList<>();
-
 
         Set<String> targetDbSet = new HashSet<>();
         for (SourceSchema schema : schemaList) {
@@ -156,27 +143,11 @@ public abstract class DuckdbDatabaseSync {
                 LOG.info("database {} not exist, created", targetDb);
                 dorisSystem.createDatabase(targetDb);
             }
-            String dorisTable = converter.convert(schema.getTableName());
-            // Calculate the mapping relationship between upstream and downstream tables
-            tableMapping.put(
-                    schema.getTableIdentifier(), String.format("%s.%s", targetDb, dorisTable));
-            DorisTableUtil.tryCreateTableIfAbsent(
-                    dorisSystem,
-                    targetDb,
-                    dorisTable,
-                    schema,
-                    dorisTableConfig,
-                    ignoreIncompatible);
-
-            if (!dorisTables.contains(Tuple2.of(targetDb, dorisTable))) {
-                dorisTables.add(Tuple2.of(targetDb, dorisTable));
-            }
         }
         if (createTableOnly) {
             System.out.println("Create table finished.");
             return false;
         }
-        LOG.info("table mapping: {}", tableMapping);
         config.setString(TABLE_NAME_OPTIONS, getSyncTableList(syncTables));
         DataStreamSource<String> streamSource = buildCdcSource(env);
         SingleOutputStreamOperator<RecordDto> recordDtoDataSource = streamSource.map(new MapFunction<String, RecordDto>() {
@@ -218,129 +189,6 @@ public abstract class DuckdbDatabaseSync {
                         .withPassword(passwd)
                         .withJdbcUrl(jdbcUrl);
         return builder.build();
-    }
-
-    // /** create doris sink for multi table. */
-    // public DorisSink<String> buildDorisSink() {
-    //     return buildDorisSink(null);
-    // }
-
-    public ParsingProcessFunction buildProcessFunction() {
-        return new ParsingProcessFunction(database, converter);
-    }
-
-    /** create doris sink. */
-    public DorisSink<String> buildDorisSink(String tableIdentifier) {
-        String fenodes = sinkConfig.getString(DorisConfigOptions.FENODES);
-        String benodes = sinkConfig.getString(DorisConfigOptions.BENODES);
-        String user = sinkConfig.getString(DorisConfigOptions.USERNAME);
-        String passwd = sinkConfig.getString(DorisConfigOptions.PASSWORD, "");
-        String jdbcUrl = sinkConfig.getString(DorisConfigOptions.JDBC_URL);
-
-        DorisSink.Builder<String> builder = DorisSink.builder();
-        DorisOptions.Builder dorisBuilder = DorisOptions.builder();
-        dorisBuilder
-                .setJdbcUrl(jdbcUrl)
-                .setFenodes(fenodes)
-                .setBenodes(benodes)
-                .setUsername(user)
-                .setPassword(passwd);
-        sinkConfig
-                .getOptional(DorisConfigOptions.AUTO_REDIRECT)
-                .ifPresent(dorisBuilder::setAutoRedirect);
-
-        // single sink not need table identifier
-        if (!singleSink && !StringUtils.isNullOrWhitespaceOnly(tableIdentifier)) {
-            dorisBuilder.setTableIdentifier(tableIdentifier);
-        }
-
-        Properties pro = new Properties();
-        // default json data format
-        pro.setProperty("format", "json");
-        pro.setProperty("read_json_by_line", "true");
-        // customer stream load properties
-        Properties streamLoadProp = DorisConfigOptions.getStreamLoadProp(sinkConfig.toMap());
-        pro.putAll(streamLoadProp);
-        DorisExecutionOptions.Builder executionBuilder =
-                DorisExecutionOptions.builder().setStreamLoadProp(pro);
-
-        sinkConfig
-                .getOptional(DorisConfigOptions.SINK_LABEL_PREFIX)
-                .ifPresent(executionBuilder::setLabelPrefix);
-        sinkConfig
-                .getOptional(DorisConfigOptions.SINK_ENABLE_DELETE)
-                .ifPresent(executionBuilder::setDeletable);
-        sinkConfig
-                .getOptional(DorisConfigOptions.SINK_BUFFER_COUNT)
-                .ifPresent(executionBuilder::setBufferCount);
-        sinkConfig
-                .getOptional(DorisConfigOptions.SINK_BUFFER_SIZE)
-                .ifPresent(v -> executionBuilder.setBufferSize((int) v.getBytes()));
-        sinkConfig
-                .getOptional(DorisConfigOptions.SINK_CHECK_INTERVAL)
-                .ifPresent(v -> executionBuilder.setCheckInterval((int) v.toMillis()));
-        sinkConfig
-                .getOptional(DorisConfigOptions.SINK_MAX_RETRIES)
-                .ifPresent(executionBuilder::setMaxRetries);
-        sinkConfig
-                .getOptional(DorisConfigOptions.SINK_IGNORE_UPDATE_BEFORE)
-                .ifPresent(executionBuilder::setIgnoreUpdateBefore);
-
-        if (!sinkConfig.getBoolean(DorisConfigOptions.SINK_ENABLE_2PC)) {
-            executionBuilder.disable2PC();
-        } else if (sinkConfig.getOptional(DorisConfigOptions.SINK_ENABLE_2PC).isPresent()) {
-            // force open 2pc
-            executionBuilder.enable2PC();
-        }
-
-        sinkConfig
-                .getOptional(DorisConfigOptions.SINK_ENABLE_BATCH_MODE)
-                .ifPresent(executionBuilder::setBatchMode);
-        sinkConfig
-                .getOptional(DorisConfigOptions.SINK_FLUSH_QUEUE_SIZE)
-                .ifPresent(executionBuilder::setFlushQueueSize);
-        sinkConfig
-                .getOptional(DorisConfigOptions.SINK_BUFFER_FLUSH_MAX_ROWS)
-                .ifPresent(executionBuilder::setBufferFlushMaxRows);
-        sinkConfig
-                .getOptional(DorisConfigOptions.SINK_BUFFER_FLUSH_MAX_BYTES)
-                .ifPresent(v -> executionBuilder.setBufferFlushMaxBytes((int) v.getBytes()));
-        sinkConfig
-                .getOptional(DorisConfigOptions.SINK_BUFFER_FLUSH_INTERVAL)
-                .ifPresent(v -> executionBuilder.setBufferFlushIntervalMs(v.toMillis()));
-
-        sinkConfig
-                .getOptional(DorisConfigOptions.SINK_USE_CACHE)
-                .ifPresent(executionBuilder::setUseCache);
-        sinkConfig
-                .getOptional(DorisConfigOptions.SINK_WRITE_MODE)
-                .ifPresent(v -> executionBuilder.setWriteMode(WriteMode.of(v)));
-        sinkConfig
-                .getOptional(DorisConfigOptions.SINK_IGNORE_COMMIT_ERROR)
-                .ifPresent(executionBuilder::setIgnoreCommitError);
-
-        DorisExecutionOptions executionOptions = executionBuilder.build();
-        builder.setDorisReadOptions(DorisReadOptions.builder().build())
-                .setDorisExecutionOptions(executionOptions)
-                .setSerializer(buildSchemaSerializer(dorisBuilder, executionOptions))
-                .setDorisOptions(dorisBuilder.build());
-        return builder.build();
-    }
-
-    public DorisRecordSerializer<String> buildSchemaSerializer(
-            DorisOptions.Builder dorisBuilder, DorisExecutionOptions executionOptions) {
-        return JsonDebeziumSchemaSerializer.builder()
-                .setDorisOptions(dorisBuilder.build())
-                .setNewSchemaChange(newSchemaChange)
-                .setSchemaChangeMode(schemaChangeMode)
-                .setExecutionOptions(executionOptions)
-                .setTableMapping(tableMapping)
-                .setDorisTableConf(dorisTableConfig)
-                .setTargetDatabase(database)
-                .setTargetTablePrefix(tablePrefix)
-                .setTargetTableSuffix(tableSuffix)
-                .setTableNameConverter(converter)
-                .build();
     }
 
     /** Filter table that need to be synchronized. */
