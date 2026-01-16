@@ -35,10 +35,16 @@ public class DuckdbMapperManagerComponent {
     private final Map<String, Class<?>> tableEntityMapping = new ConcurrentHashMap<>();
     // 每一张表对应的spring 容器中的 mapper bean 对象
     private final Map<String, BaseMapperDuckdb<?>> mapperBeanMapping = new ConcurrentHashMap<>();
+    private CdcConcurrentThreads cdcConcurrentThreads;
 
     @PostConstruct
     public void init() {
         DuckDBWriter.duckdbMapperManagerComponent = this;
+
+        if (cdcConcurrentThreads == null) {
+            cdcConcurrentThreads = new CdcConcurrentThreads();
+            cdcConcurrentThreads.init();
+        }
     }
 
     public void registerMapperBean(SourceSchema schema) throws Exception {
@@ -128,4 +134,28 @@ public class DuckdbMapperManagerComponent {
             entityPropertiesSetter(superClass, entity, properties);
         }
     }
+
+    // 读和写都要允许阻塞，直到成功为止，不然flink 的checkpoint 将会出现问题。
+    public void write(RecordDto recordDto) throws InterruptedException {
+        String duckdbTbName = mappingDuckdbTbName(recordDto);
+        Class<?> entity = mappingEntity(recordDto);
+        cdcConcurrentThreads.write(duckdbTbName, entity);
+    }
+
+    public void flush() {
+        cdcConcurrentThreads.flush();
+    }
+
+    private String mappingDuckdbTbName(RecordDto recordDto) {
+        // TODO: suyh - 待处理
+        //   测试，暂时处理成mysql 的表名
+        return recordDto.getSource().getTable();
+    }
+
+    private Class<?> mappingEntity(RecordDto recordDto) {
+        // TODO: suyh - 待处理
+        return null;
+    }
+
+
 }
