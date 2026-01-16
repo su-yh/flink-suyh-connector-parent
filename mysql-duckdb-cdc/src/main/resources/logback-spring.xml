@@ -2,8 +2,8 @@
 
 <!-- 注意这个文件名，似乎只能是这个，否则springProperty 会有问题配置这个文件名系统会自动加载这个配置 -->
 <configuration>
-    <property name="PATTERN_STDOUT" value="%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd HH:mm:ss.SSS}} | %highlight(${LOG_LEVEL_PATTERN:-%5p}) | %16.16thread | %boldGreen(%-40.40logger:%4L) | %yellow(%X{trace-id}) | %m%n"/>
-    <property name="PATTERN_FILE" value="%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd HH:mm:ss.SSS}} | ${LOG_LEVEL_PATTERN:-%5p} ${PID:- } | %16.16thread | %-40.40logger:%4L | %X{trace-id} | %m%n"/>
+    <property name="PATTERN_STDOUT" value="%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd HH:mm:ss.SSS}} | %highlight(${LOG_LEVEL_PATTERN:-%5p}) | %16.16thread | %boldGreen(%40.40logger:%4L) | %yellow(%X{trace-id}) | %m%n"/>
+    <property name="PATTERN_FILE" value="%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd HH:mm:ss.SSS}} | ${LOG_LEVEL_PATTERN:-%5p} ${PID:- } | %16.16thread | %40.40logger:%4L | %X{trace-id} | %m%n"/>
 
 
 

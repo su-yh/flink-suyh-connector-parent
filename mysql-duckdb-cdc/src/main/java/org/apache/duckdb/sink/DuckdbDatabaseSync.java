@@ -126,7 +126,12 @@ public abstract class DuckdbDatabaseSync {
         Set<String> targetDbSet = new HashSet<>();
         for (SourceSchema schema : schemaList) {
             List<String> primaryKeys = schema.getPrimaryKeys();
-            LOG.info("表 {} 的主键是: {}", schema.getTableName(), primaryKeys);
+            int size = primaryKeys == null ? 0 : primaryKeys.size();
+            if (size != 1) {
+                LOG.warn("Unsupported. source db table name: {}, primary key size: {}. primary key size must 1.",
+                        schema.getTableName(), size);
+                continue;
+            }
 
             duckdbMapperManagerComponent.registerMapperBean(schema);
             BaseMapperDuckdb<?> baseMapperBean = duckdbMapperManagerComponent.getMapperBean(schema.getTableName());
