@@ -17,7 +17,6 @@ import javax.annotation.PostConstruct;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.math.BigDecimal;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -70,17 +69,6 @@ public class DuckdbMapperManagerComponent {
 
     public BaseMapperDuckdb<?> getMapperBean(String tableName) {
         return mapperBeanMapping.get(tableName);
-    }
-
-    public void upsertEntity(RecordDto recordDto) throws InstantiationException, IllegalAccessException {
-        String table = recordDto.getSource().getTable();
-        BaseMapperDuckdb<?> baseMapperDuckdb = mapperBeanMapping.get(table);
-        Class<?> entityClass = tableEntityMapping.get(table);
-        Object entity = entityClass.newInstance();
-
-        entityPropertiesSetter(entityClass, entity, recordDto.getAfter());
-
-        baseMapperDuckdb.upsertObjects(Collections.singletonList(entity));
     }
 
     private void entityPropertiesSetter(Class<?> modelClass, Object entity, Map<String, Object> properties) throws IllegalAccessException {
@@ -138,8 +126,12 @@ public class DuckdbMapperManagerComponent {
     // 读和写都要允许阻塞，直到成功为止，不然flink 的checkpoint 将会出现问题。
     public void write(RecordDto recordDto) throws InterruptedException {
         String duckdbTbName = mappingDuckdbTbName(recordDto);
-        Class<?> entity = mappingEntity(recordDto);
-        cdcConcurrentThreads.write(duckdbTbName, entity);
+        try {
+            Object entity = mappingEntity(recordDto);
+            cdcConcurrentThreads.write(duckdbTbName, entity);
+        } catch (InstantiationException | IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void flush() {
@@ -152,9 +144,12 @@ public class DuckdbMapperManagerComponent {
         return recordDto.getSource().getTable();
     }
 
-    private Class<?> mappingEntity(RecordDto recordDto) {
-        // TODO: suyh - 待处理
-        return null;
+    private Object mappingEntity(RecordDto recordDto) throws InstantiationException, IllegalAccessException {
+        String table = recordDto.getSource().getTable();
+        Class<?> entityClass = tableEntityMapping.get(table);
+        Object entity = entityClass.newInstance();
+        entityPropertiesSetter(entityClass, entity, recordDto.getAfter());
+        return entity;
     }
 
 

@@ -30,7 +30,6 @@ public class TableRecordBuffer {
     public boolean put(String tbName, Object entity) {
         List<Object> entities = tableEntitiesMapping.computeIfAbsent(tbName, k -> new ArrayList<>(capacity));
         entities.add(entity);
-        log.info("put({})", tbName);
 
         return capacity <= entities.size();
     }
