@@ -146,19 +146,23 @@ public class JavassistDynamicClassGenerator {
         generateGetterSetter(ctEntityClass, ctField, fieldName, fieldType);
     }
 
+    // @TableId( type = IdType.ASSIGN_ID, value = "id" )
     private static Annotation buildTableIdAnnotation(ConstPool constPool, String dbColumnName) {
         String tableIdAnnotationClass = TableId.class.getName();
         Annotation tableIdAnnotation = new Annotation(tableIdAnnotationClass, constPool);
 
+        StringMemberValue valueMember = new StringMemberValue(dbColumnName, constPool);
+        tableIdAnnotation.addMemberValue("value", valueMember);
+
         EnumMemberValue enumMemberValue = new EnumMemberValue(constPool);
         enumMemberValue.setType(IdType.class.getName());
         enumMemberValue.setValue(IdType.ASSIGN_ID.name());
-
         tableIdAnnotation.addMemberValue("type", enumMemberValue);
 
         return tableIdAnnotation;
     }
 
+    // @TableField("message_id")
     private static Annotation buildTableFieldAnnotation(ConstPool constPool, String dbColumnName) {
         String tableFieldAnnotationClass = TableField.class.getName();
         Annotation tableFieldAnnotation = new Annotation(tableFieldAnnotationClass, constPool);
@@ -167,6 +171,7 @@ public class JavassistDynamicClassGenerator {
         return tableFieldAnnotation;
     }
 
+    // @TbColumn( value = "id", type = "BIGINT", primaryKey = true, enable = true )
     private static Annotation buildTbColumnAnnotation(ConstPool constPool, DuckdbFieldSchema mysqlColumn) {
         String tbColumnAnnotationClass = TbColumn.class.getName();
         Annotation tbColumnAnnotation = new Annotation(tbColumnAnnotationClass, constPool);
