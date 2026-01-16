@@ -1,6 +1,5 @@
 package com.cdc.duckdb.component;
 
-
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -28,22 +27,26 @@ import java.util.Map;
 public class JavassistDynamicClassGenerator {
 
     /**
-     * 基于 MysqlSchema 动态生成 MyBatis-Plus Entity 类
+     * 基于 MysqlSchema 动态生成 MyBatis-Plus Entity 类（修改后：实现 BaseEntity 并实现 getPrimaryKey()）
      * @param sourceSchema Doris CDC 提供的 MySQL 表结构元数据
      * @param entityPackage 生成Entity的包名（如：com.ebusiness.entity）
      * @param entityClassName 生成Entity的类名（如：PersonEntity）
      * @return 动态生成的Entity Class对象
      * @throws Exception 生成过程中的异常（Javassist操作、反射相关）
      */
-    public static BaseEntity generateDynamicEntity(SourceSchema sourceSchema, String entityPackage, String entityClassName) throws Exception {
+    public static Class<?> generateDynamicEntity(SourceSchema sourceSchema, String entityPackage, String entityClassName) throws Exception {
         // 1. 初始化 Javassist ClassPool（类池，用于创建/获取CtClass）
         ClassPool classPool = ClassPool.getDefault();
         classPool.importPackage(TableName.class.getName());
         classPool.importPackage(IdType.class.getName());
+        classPool.importPackage(BaseEntity.class.getName());
 
         // 2. 构建完整的类名（包名+类名）
         String fullEntityClassName = entityPackage + "." + entityClassName;
         CtClass ctEntityClass = classPool.makeClass(fullEntityClassName);
+
+        CtClass baseEntityCt = classPool.get(BaseEntity.class.getName());
+        ctEntityClass.addInterface(baseEntityCt);
 
         // 4. 为Entity添加 MyBatis-Plus @TableName 注解（关联数据库表名）
         String tableName = sourceSchema.getTableName();
@@ -54,12 +57,18 @@ public class JavassistDynamicClassGenerator {
         List<DuckdbFieldSchema> mysqlColumns = fields == null ? new ArrayList<>() : new ArrayList<>(fields.values());
         for (DuckdbFieldSchema column : mysqlColumns) {
             generateEntityField(ctEntityClass, column);
+            // 查找主键字段（基于 DuckdbFieldSchema.isPrimaryKey() 判断）
+            if (column.isPrimaryKey()) {
+                // TODO: 在这里补充，实现接口方法，方法名我修改成了：Object primaryKey();
+                //  这里只需要在子类实现它，并把 主键的字段名返回就可以了
+                //  public Object primaryKey() { return ${column.getName()}; }
+            }
         }
 
         ctEntityClass.writeFile("./debug");
 
         // 6. 将 CtClass 转换为实际的 Class 对象并返回
-        return (BaseEntity) ctEntityClass.toClass();
+        return ctEntityClass.toClass();
     }
 
     /**
@@ -91,6 +100,7 @@ public class JavassistDynamicClassGenerator {
             throw new IllegalArgumentException("不支持的MySQL字段类型：" + mysqlColumn.getTypeString());
         }
 
+        // 属性名直接使用表字段名，并且这里全是小写的，在初始化时就固定了。
         String fieldName = mysqlColumn.getName();
         CtField ctField = new CtField(fieldType, fieldName, ctEntityClass);
 
@@ -103,7 +113,6 @@ public class JavassistDynamicClassGenerator {
         fieldAnnotationAttr.addAnnotation(tableFieldAnnotationAttr);
         fieldAnnotationAttr.addAnnotation(tbColumnAnnotation);
         ctField.getFieldInfo().addAttribute(fieldAnnotationAttr);
-        // ==========================================================================
 
         // 4. 将成员变量添加到动态类中
         ctEntityClass.addField(ctField);
@@ -113,22 +122,10 @@ public class JavassistDynamicClassGenerator {
     }
 
     private static Annotation buildTableFieldAnnotation(ConstPool constPool, String dbColumnName) {
-        // ===================== 新增：为字段添加 @TableField 注解 =====================
-        // 3.1 定义 @TableField 注解的全类名（MyBatis-Plus 注解，若使用其他注解可修改路径）
         String tableFieldAnnotationClass = TableField.class.getName();
-
-        // 3.2 构建注解实例（基于 ConstPool 生成，确保注解能被字节码识别）
         Annotation tableFieldAnnotation = new Annotation(tableFieldAnnotationClass, constPool);
-
-        // 3.3 为注解设置 value 属性（值为数据库原始字段名，如 "status"、"user_id"）
         StringMemberValue valueMember = new StringMemberValue(dbColumnName, constPool);
         tableFieldAnnotation.addMemberValue("value", valueMember);
-
-        // 3.4 （可选）添加其他 @TableField 注解属性（如 exist、fill 等，按需扩展）
-        // 示例：设置 exist = true（默认值，可省略）
-        // BooleanMemberValue existMember = new BooleanMemberValue(true, constPool);
-        // tableFieldAnnotation.addMemberValue("exist", existMember);
-
         return tableFieldAnnotation;
     }
 
@@ -147,30 +144,6 @@ public class JavassistDynamicClassGenerator {
         tbColumnAnnotation.addMemberValue("enable", enableMember);
 
         return tbColumnAnnotation;
-    }
-
-    /**
-     * 下划线命名转驼峰命名（如 user_info -> userInfo）
-     */
-    private static String underlineToCamel(String underlineName) {
-        if (underlineName == null || !underlineName.contains("_")) {
-            return underlineName;
-        }
-        StringBuilder camelBuilder = new StringBuilder();
-        boolean nextUpper = false;
-        for (char c : underlineName.toCharArray()) {
-            if (c == '_') {
-                nextUpper = true;
-            } else {
-                if (nextUpper) {
-                    camelBuilder.append(Character.toUpperCase(c));
-                    nextUpper = false;
-                } else {
-                    camelBuilder.append(Character.toLowerCase(c));
-                }
-            }
-        }
-        return camelBuilder.toString();
     }
 
     /**
@@ -221,8 +194,6 @@ public class JavassistDynamicClassGenerator {
             // 4. 设置泛型签名并转换为 Class
             mapperCt.setGenericSignature(ac.encode());
 
-            mapperCt.writeFile("./debug");
-
             return mapperCt.toClass();
         } catch (Exception e) {
             e.printStackTrace();
@@ -230,3 +201,4 @@ public class JavassistDynamicClassGenerator {
         }
     }
 }
+
