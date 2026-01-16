@@ -9,7 +9,7 @@ import lombok.Data;
 @Data
 public class DuckdbFieldSchema extends FieldSchema {
     private final Class<?> javaClazz;
-    private final boolean primaryKey; // TODO: suyh - 是否主键
+    private final boolean primaryKey;
 
     public DuckdbFieldSchema(String name, String typeString, String comment, Class<?> javaClazz, boolean primaryKey) {
         super(name, typeString, comment);

@@ -75,7 +75,7 @@ public class CdcConcurrentThreads {
         if (full) {
             doFlush(tableRecordBuffer);
         } else {
-            writeQueue.put(tableRecordBuffer);
+            recycleBuffer(tableRecordBuffer);
         }
     }
 
@@ -84,16 +84,34 @@ public class CdcConcurrentThreads {
         flush();
     }
 
-    public void flush() {
+    public void syncFlush() {
+        TableRecordBuffer tableRecordBuffer = takeBuffer();
+        tableRecordBuffer.upsertEntitiesAndReset(obtainMapperCallback);
+        recycleBuffer(tableRecordBuffer);
+    }
+
+    private TableRecordBuffer takeBuffer() {
+        int count = 3;
+        for (int i = 0; i < count; i++) {
+            try {
+                return writeQueue.take();
+            } catch (InterruptedException e) {
+                log.warn("writeQueue.take failed, retry {}/{}", (i + 1), count, e);
+            }
+        }
+
+        throw new RuntimeException("takeBuffer failed.");
+    }
+
+    private void flush() {
         try {
             TableRecordBuffer tableRecordBuffer = writeQueue.poll();
             if (tableRecordBuffer != null) {
                 if (!tableRecordBuffer.isEmpty()) {
                     doFlush(tableRecordBuffer);
                 } else {
-                    // 将空buffer 还回去
-                    writeQueue.put(tableRecordBuffer);
                     log.trace("将空buffer 还回写队列");
+                    recycleBuffer(tableRecordBuffer);
                 }
             }
         } catch (Exception e) {
@@ -105,6 +123,24 @@ public class CdcConcurrentThreads {
         duckdbWriterThread.write(tableRecordBuffer);
     }
 
+    private void recycleBuffer(TableRecordBuffer tableRecordBuffer) {
+        tableRecordBuffer.reset();
+
+        int count = 3;
+        for (int i = 0; i < count; i++) {
+            try {
+                writeQueue.put(tableRecordBuffer);
+                return;
+            } catch (InterruptedException e) {
+                log.warn("writeQueue.put failed, retry {}/{}", (i + 1), count, e);
+            }
+        }
+
+        throw new RuntimeException("recycleBuffer failed.");
+    }
+
+
+    // ####################################################################################
     private class DuckdbWriterThread extends Thread {
         private final ArrayBlockingQueue<TableRecordBuffer> readQueue = new ArrayBlockingQueue<>(1);
 
@@ -117,8 +153,7 @@ public class CdcConcurrentThreads {
                         log.trace("从读队列中取到buffer");
                         tableRecordBuffer.upsertEntitiesAndReset(obtainMapperCallback);
 
-                        tableRecordBuffer.reset();
-                        writeQueue.put(tableRecordBuffer);
+                        recycleBuffer(tableRecordBuffer);
                         log.trace("buffer 处理完，还回写队列");
                     }
                 } catch (InterruptedException e) {

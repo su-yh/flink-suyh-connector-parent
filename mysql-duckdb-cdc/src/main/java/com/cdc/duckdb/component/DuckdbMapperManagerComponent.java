@@ -134,8 +134,8 @@ public class DuckdbMapperManagerComponent {
         }
     }
 
-    public void flush() {
-        cdcConcurrentThreads.flush();
+    public void syncFlush() {
+        cdcConcurrentThreads.syncFlush();
     }
 
     private String mappingDuckdbTbName(RecordDto recordDto) {

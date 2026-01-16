@@ -60,7 +60,7 @@ public class JavassistDynamicClassGenerator {
             generateEntityField(ctEntityClass, column);
         }
 
-        ctEntityClass.writeFile("./debug"); // TODO: suyh - 测试，验证结果。这是会生成java 文件，还是生成class 文件
+        // ctEntityClass.writeFile("./debug");
 
         // 6. 将 CtClass 转换为实际的 Class 对象并返回
         return ctEntityClass.toClass();
@@ -239,7 +239,7 @@ public class JavassistDynamicClassGenerator {
             // 4. 设置泛型签名并转换为 Class
             mapperCt.setGenericSignature(ac.encode());
 
-            mapperCt.writeFile("./debug"); // TODO: suyh - 测试，验证结果。这是会生成java 文件，还是生成class 文件
+            // mapperCt.writeFile("./debug");
 
             return mapperCt.toClass();
         } catch (Exception e) {

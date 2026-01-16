@@ -15,13 +15,13 @@ public class DuckDBWriter implements
         TwoPhaseCommittingSink.PrecommittingSinkWriter<RecordDto, DuckDBCommittable> {
 
     private static final Logger LOG = LoggerFactory.getLogger(DuckDBWriter.class);
-    // TODO: suyh - 这个对象，该如何传入？
+    // TODO: suyh - 这个对象，该如何传入比较合适？
     public static DuckdbMapperManagerComponent duckdbMapperManagerComponent;
 
     private long lastCkId = 0;
 
     public DuckDBWriter(Iterable<DuckDBWriterState> states) {
-        // 模拟恢复逻辑
+        // 恢复逻辑
         for (DuckDBWriterState state : states) {
             this.lastCkId = state.lastCheckpointId;
             LOG.debug("检测到恢复状态，从 Checkpoint {} 恢复中...", lastCkId);
@@ -52,9 +52,7 @@ public class DuckDBWriter implements
     @Override
     public void flush(boolean endOfInput) {
         LOG.info("checkpoint flush triggered.");
-        // TODO: suyh - 这里应该是希望阻塞处理，而不是异步处理。因为失败后，checkpoint 需要恢复。
-        //    如果这里异步了，如果后续失败了，那么这些数据就会丢失。checkpoint 中已经跳过了。
-        duckdbMapperManagerComponent.flush();
+        duckdbMapperManagerComponent.syncFlush();
     }
 
     @Override
