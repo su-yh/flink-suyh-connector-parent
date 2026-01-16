@@ -2,6 +2,7 @@ package com.cdc.duckdb.component;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cdc.duckdb.mp.ann.TbColumn;
 import com.cdc.duckdb.mp.entity.BaseEntity;
@@ -123,10 +124,17 @@ public class JavassistDynamicClassGenerator {
         // 3. 设置成员变量修饰符为 private（符合JavaBean规范）
         ctField.setModifiers(Modifier.PRIVATE);
 
-        Annotation tableFieldAnnotationAttr = buildTableFieldAnnotation(constPool, mysqlColumn.getName());
-        Annotation tbColumnAnnotation = buildTbColumnAnnotation(constPool, mysqlColumn);
         AnnotationsAttribute fieldAnnotationAttr = new AnnotationsAttribute(constPool, AnnotationsAttribute.visibleTag);
-        fieldAnnotationAttr.addAnnotation(tableFieldAnnotationAttr);
+
+        if (mysqlColumn.isPrimaryKey()) {
+            Annotation tableIdAnnotationAttr = buildTableIdAnnotation(constPool, mysqlColumn.getName());
+            fieldAnnotationAttr.addAnnotation(tableIdAnnotationAttr);
+        } else {
+            Annotation tableFieldAnnotationAttr = buildTableFieldAnnotation(constPool, mysqlColumn.getName());
+            fieldAnnotationAttr.addAnnotation(tableFieldAnnotationAttr);
+        }
+
+        Annotation tbColumnAnnotation = buildTbColumnAnnotation(constPool, mysqlColumn);
         fieldAnnotationAttr.addAnnotation(tbColumnAnnotation);
         ctField.getFieldInfo().addAttribute(fieldAnnotationAttr);
 
@@ -135,6 +143,14 @@ public class JavassistDynamicClassGenerator {
 
         // 5. 为成员变量生成 getter/setter 方法（若不使用Lombok，可手动生成；使用Lombok可省略，这里做兼容）
         generateGetterSetter(ctEntityClass, ctField, fieldName, fieldType);
+    }
+
+    private static Annotation buildTableIdAnnotation(ConstPool constPool, String dbColumnName) {
+        String tableFieldAnnotationClass = TableId.class.getName();
+        Annotation tableFieldAnnotation = new Annotation(tableFieldAnnotationClass, constPool);
+        StringMemberValue valueMember = new StringMemberValue(dbColumnName, constPool);
+        tableFieldAnnotation.addMemberValue("type", valueMember);
+        return tableFieldAnnotation;
     }
 
     private static Annotation buildTableFieldAnnotation(ConstPool constPool, String dbColumnName) {
