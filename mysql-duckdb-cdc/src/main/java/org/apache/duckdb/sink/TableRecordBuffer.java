@@ -66,8 +66,4 @@ public class TableRecordBuffer {
             entities.clear();
         });
     }
-
-    public void reset() {
-        tableEntitiesMapping.forEach((k, v) -> v.clear());
-    }
 }

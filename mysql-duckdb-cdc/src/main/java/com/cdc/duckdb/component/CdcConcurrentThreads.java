@@ -124,8 +124,6 @@ public class CdcConcurrentThreads {
     }
 
     private void recycleBuffer(TableRecordBuffer tableRecordBuffer) {
-        tableRecordBuffer.reset();
-
         int count = 3;
         for (int i = 0; i < count; i++) {
             try {
