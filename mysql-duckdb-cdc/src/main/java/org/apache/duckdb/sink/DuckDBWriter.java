@@ -52,9 +52,6 @@ public class DuckDBWriter implements
     @Override
     public void flush(boolean endOfInput) {
         LOG.info("checkpoint flush triggered.");
-        if (true) {
-            return; // 先测试定时任务那边的刷新
-        }
         // TODO: suyh - 这里应该是希望阻塞处理，而不是异步处理。因为失败后，checkpoint 需要恢复。
         //    如果这里异步了，如果后续失败了，那么这些数据就会丢失。checkpoint 中已经跳过了。
         duckdbMapperManagerComponent.flush();

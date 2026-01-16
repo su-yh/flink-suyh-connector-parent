@@ -114,18 +114,15 @@ public class CdcConcurrentThreads {
                 try {
                     TableRecordBuffer tableRecordBuffer = readQueue.poll(1, TimeUnit.SECONDS);
                     if (tableRecordBuffer != null) {
-                        log.info("从读队列中取到buffer");
-                        // TODO: suyh - 待实现！！！
-                        // ... 将buffer 中的数据全部写到duckdb
+                        log.trace("从读队列中取到buffer");
                         tableRecordBuffer.upsertEntitiesAndReset(obtainMapperCallback);
 
-                        // ###########################
                         tableRecordBuffer.reset();
                         writeQueue.put(tableRecordBuffer);
                         log.trace("buffer 处理完，还回写队列");
                     }
                 } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                    log.error("{} error.", DuckdbWriterThread.class.getSimpleName(), e);
                 }
             }
         }
