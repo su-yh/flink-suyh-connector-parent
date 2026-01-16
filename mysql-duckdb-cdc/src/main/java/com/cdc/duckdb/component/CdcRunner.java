@@ -148,9 +148,11 @@ public class CdcRunner implements ApplicationRunner {
             configuration.setString("execution.checkpointing.min-pause", "10000");
             // configuration.setInteger("state.checkpoints.num-retained", 2);
 
-            // 从checkpoint 启动
-            // String checkpointPath = "file:///E:\\tmp\\checkpoints\\b4c76e988a362b078a914215ea4d88f6\\chk-222\\_metadata";
-            // configuration.setString("execution.savepoint.path", checkpointPath);
+            if (true) {
+                // 从checkpoint 启动
+                String checkpointPath = "file:///E:\\tmp\\cem-cdc\\checkpoints\\6eb5c92dcb5914a929054ac82dce6dd7\\chk-32\\_metadata";
+                configuration.setString("execution.savepoint.path", checkpointPath);
+            }
             env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration);
 
             // 1. 开启周期性Checkpoint，间隔30秒（本地调试可缩短，如5秒=5000ms）

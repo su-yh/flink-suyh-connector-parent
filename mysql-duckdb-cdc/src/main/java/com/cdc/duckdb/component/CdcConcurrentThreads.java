@@ -1,5 +1,6 @@
 package com.cdc.duckdb.component;
 
+import com.cdc.duckdb.mp.entity.BaseEntity;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -67,7 +68,7 @@ public class CdcConcurrentThreads {
     }
 
     // 提供给flink sink 调用
-    public void write(String tbName, Object entity) throws InterruptedException {
+    public void write(String tbName, BaseEntity entity) throws InterruptedException {
         log.trace("write, table name: {}, start...",  tbName);
         TableRecordBuffer tableRecordBuffer = writeQueue.take();
         log.trace("write, table name: {}, finished",  tbName);

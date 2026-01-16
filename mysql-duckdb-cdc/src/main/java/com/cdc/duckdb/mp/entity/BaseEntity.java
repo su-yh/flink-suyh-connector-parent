@@ -5,5 +5,5 @@ package com.cdc.duckdb.mp.entity;
  * @since 2026-01-16
  */
 public interface BaseEntity {
-    Object primaryKey();
+    Object getPrimaryKey();
 }

@@ -34,7 +34,7 @@ public class JavassistDynamicClassGenerator {
      * @return 动态生成的Entity Class对象
      * @throws Exception 生成过程中的异常（Javassist操作、反射相关）
      */
-    public static Class<?> generateDynamicEntity(SourceSchema sourceSchema, String entityPackage, String entityClassName) throws Exception {
+    public static Class<? extends BaseEntity> generateDynamicEntity(SourceSchema sourceSchema, String entityPackage, String entityClassName) throws Exception {
         // 1. 初始化 Javassist ClassPool（类池，用于创建/获取CtClass）
         ClassPool classPool = ClassPool.getDefault();
         classPool.importPackage(TableName.class.getName());
@@ -45,15 +45,15 @@ public class JavassistDynamicClassGenerator {
         String fullEntityClassName = entityPackage + "." + entityClassName;
         CtClass ctEntityClass = classPool.makeClass(fullEntityClassName);
 
-        // 绑定 BaseEntity 接口
+        // 3. 绑定 BaseEntity 接口（确保动态类实现该接口，为返回值类型约束提供支撑）
         CtClass baseEntityCt = classPool.get(BaseEntity.class.getName());
         ctEntityClass.addInterface(baseEntityCt);
 
-        // 3. 为Entity添加 MyBatis-Plus @TableName 注解（关联数据库表名）
+        // 4. 为Entity添加 MyBatis-Plus @TableName 注解（关联数据库表名）
         String tableName = sourceSchema.getTableName();
         addTableNameAnnotation(ctEntityClass, tableName);
 
-        // 4. 遍历 MysqlSchema 中的列信息，动态生成Entity的成员变量及注解
+        // 5. 遍历字段信息，动态生成Entity的成员变量及注解
         Map<String, DuckdbFieldSchema> fields = sourceSchema.getDuckdbFields();
         List<DuckdbFieldSchema> mysqlColumns = fields == null ? new ArrayList<>() : new ArrayList<>(fields.values());
 
@@ -66,8 +66,8 @@ public class JavassistDynamicClassGenerator {
 
         ctEntityClass.writeFile("./debug");
 
-        // 5. 将 CtClass 转换为实际的 Class 对象并返回
-        return ctEntityClass.toClass();
+        Class<?> entityClass = ctEntityClass.toClass();
+        return (Class<? extends BaseEntity>) entityClass;
     }
 
     /**
@@ -76,7 +76,7 @@ public class JavassistDynamicClassGenerator {
     private static void generatePrimaryKeyMethod(CtClass ctEntityClass, String primaryKeyFieldName) throws Exception {
         ClassPool classPool = ctEntityClass.getClassPool();
 
-        CtMethod primaryKeyMethod = new CtMethod(classPool.get(Object.class.getName()), "primaryKey", new CtClass[]{}, ctEntityClass);
+        CtMethod primaryKeyMethod = new CtMethod(classPool.get(Object.class.getName()), "getPrimaryKey", new CtClass[]{}, ctEntityClass);
 
         primaryKeyMethod.setModifiers(Modifier.PUBLIC);
 

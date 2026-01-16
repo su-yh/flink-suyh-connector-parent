@@ -1,6 +1,7 @@
 package com.cdc.duckdb.component;
 
 import com.cdc.duckdb.mp.ann.TbColumn;
+import com.cdc.duckdb.mp.entity.BaseEntity;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +32,7 @@ public class DuckdbMapperManagerComponent {
     private final SqlSessionFactory sqlSessionFactory;
     private final GenericApplicationContext genericApplicationContext;
     // 每一张表对应的Entity
-    private final Map<String, Class<?>> tableEntityMapping = new ConcurrentHashMap<>();
+    private final Map<String, Class<? extends BaseEntity>> tableEntityMapping = new ConcurrentHashMap<>();
     // 每一张表对应的spring 容器中的 mapper bean 对象
     private final Map<String, BaseMapperDuckdb<?>> mapperBeanMapping = new ConcurrentHashMap<>();
     private CdcConcurrentThreads cdcConcurrentThreads;
@@ -49,7 +50,7 @@ public class DuckdbMapperManagerComponent {
     public void registerMapperBean(SourceSchema schema) throws Exception {
         String tableName = schema.getTableName();
 
-        Class<?> entityClass = JavassistDynamicClassGenerator.generateDynamicEntity(schema, "com.cdc.duckdb.mp.entity", schema.getTableName() + "_entity");
+        Class<? extends BaseEntity> entityClass = JavassistDynamicClassGenerator.generateDynamicEntity(schema, "com.cdc.duckdb.mp.entity", schema.getTableName() + "_entity");
         Class<?> mapperClass = JavassistDynamicClassGenerator.generateDynamicMapper("com.cdc.duckdb.mp.mapper", schema.getTableName() + "_mapper", entityClass);
 
         Configuration configuration = sqlSessionFactory.getConfiguration();
@@ -127,7 +128,7 @@ public class DuckdbMapperManagerComponent {
     public void write(RecordDto recordDto) throws InterruptedException {
         String duckdbTbName = mappingDuckdbTbName(recordDto);
         try {
-            Object entity = mappingEntity(recordDto);
+            BaseEntity entity = mappingEntity(recordDto);
             cdcConcurrentThreads.write(duckdbTbName, entity);
         } catch (InstantiationException | IllegalAccessException e) {
             throw new RuntimeException(e);
@@ -144,10 +145,10 @@ public class DuckdbMapperManagerComponent {
         return recordDto.getSource().getTable();
     }
 
-    private Object mappingEntity(RecordDto recordDto) throws InstantiationException, IllegalAccessException {
+    private BaseEntity mappingEntity(RecordDto recordDto) throws InstantiationException, IllegalAccessException {
         String table = recordDto.getSource().getTable();
-        Class<?> entityClass = tableEntityMapping.get(table);
-        Object entity = entityClass.newInstance();
+        Class<? extends BaseEntity> entityClass = tableEntityMapping.get(table);
+        BaseEntity entity = entityClass.newInstance();
         entityPropertiesSetter(entityClass, entity, recordDto.getAfter());
         return entity;
     }
