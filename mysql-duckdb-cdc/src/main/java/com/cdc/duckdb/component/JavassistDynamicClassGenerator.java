@@ -45,30 +45,46 @@ public class JavassistDynamicClassGenerator {
         String fullEntityClassName = entityPackage + "." + entityClassName;
         CtClass ctEntityClass = classPool.makeClass(fullEntityClassName);
 
+        // 绑定 BaseEntity 接口
         CtClass baseEntityCt = classPool.get(BaseEntity.class.getName());
         ctEntityClass.addInterface(baseEntityCt);
 
-        // 4. 为Entity添加 MyBatis-Plus @TableName 注解（关联数据库表名）
+        // 3. 为Entity添加 MyBatis-Plus @TableName 注解（关联数据库表名）
         String tableName = sourceSchema.getTableName();
         addTableNameAnnotation(ctEntityClass, tableName);
 
-        // 5. 遍历 MysqlSchema 中的列信息，动态生成Entity的成员变量及注解
+        // 4. 遍历 MysqlSchema 中的列信息，动态生成Entity的成员变量及注解
         Map<String, DuckdbFieldSchema> fields = sourceSchema.getDuckdbFields();
         List<DuckdbFieldSchema> mysqlColumns = fields == null ? new ArrayList<>() : new ArrayList<>(fields.values());
+
         for (DuckdbFieldSchema column : mysqlColumns) {
             generateEntityField(ctEntityClass, column);
-            // 查找主键字段（基于 DuckdbFieldSchema.isPrimaryKey() 判断）
             if (column.isPrimaryKey()) {
-                // TODO: 在这里补充，实现接口方法，方法名我修改成了：Object primaryKey();
-                //  这里只需要在子类实现它，并把 主键的字段名返回就可以了
-                //  public Object primaryKey() { return ${column.getName()}; }
+                generatePrimaryKeyMethod(ctEntityClass, column.getName());
             }
         }
 
         ctEntityClass.writeFile("./debug");
 
-        // 6. 将 CtClass 转换为实际的 Class 对象并返回
+        // 5. 将 CtClass 转换为实际的 Class 对象并返回
         return ctEntityClass.toClass();
+    }
+
+    /**
+     * 仅实现 BaseEntity 接口的 primaryKey() 方法，无其他额外操作
+     */
+    private static void generatePrimaryKeyMethod(CtClass ctEntityClass, String primaryKeyFieldName) throws Exception {
+        ClassPool classPool = ctEntityClass.getClassPool();
+
+        CtMethod primaryKeyMethod = new CtMethod(classPool.get(Object.class.getName()), "primaryKey", new CtClass[]{}, ctEntityClass);
+
+        primaryKeyMethod.setModifiers(Modifier.PUBLIC);
+
+        String methodBody = String.format("return this.%s;", primaryKeyFieldName);
+        primaryKeyMethod.setBody(methodBody);
+
+        // 将方法添加到动态Entity类中
+        ctEntityClass.addMethod(primaryKeyMethod);
     }
 
     /**
