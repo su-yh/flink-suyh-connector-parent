@@ -16,6 +16,7 @@ import javassist.bytecode.AnnotationsAttribute;
 import javassist.bytecode.ConstPool;
 import javassist.bytecode.annotation.Annotation;
 import javassist.bytecode.annotation.BooleanMemberValue;
+import javassist.bytecode.annotation.EnumMemberValue;
 import javassist.bytecode.annotation.StringMemberValue;
 import org.apache.doris.flink.catalog.doris.DuckdbFieldSchema;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
@@ -146,11 +147,16 @@ public class JavassistDynamicClassGenerator {
     }
 
     private static Annotation buildTableIdAnnotation(ConstPool constPool, String dbColumnName) {
-        String tableFieldAnnotationClass = TableId.class.getName();
-        Annotation tableFieldAnnotation = new Annotation(tableFieldAnnotationClass, constPool);
-        StringMemberValue valueMember = new StringMemberValue(dbColumnName, constPool);
-        tableFieldAnnotation.addMemberValue("type", valueMember);
-        return tableFieldAnnotation;
+        String tableIdAnnotationClass = TableId.class.getName();
+        Annotation tableIdAnnotation = new Annotation(tableIdAnnotationClass, constPool);
+
+        EnumMemberValue enumMemberValue = new EnumMemberValue(constPool);
+        enumMemberValue.setType(IdType.class.getName());
+        enumMemberValue.setValue(IdType.ASSIGN_ID.name());
+
+        tableIdAnnotation.addMemberValue("type", enumMemberValue);
+
+        return tableIdAnnotation;
     }
 
     private static Annotation buildTableFieldAnnotation(ConstPool constPool, String dbColumnName) {
