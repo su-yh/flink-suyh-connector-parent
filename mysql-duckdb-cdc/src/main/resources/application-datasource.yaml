@@ -4,33 +4,6 @@ spring:
       enabled: true
       strict: true
       primary: "cem-master-mysql"
-    hikari:
-      cds-mysql:
-        flyway:
-          enabled: false
-      cds-slave-mysql:
-        flyway:
-          enabled: false
-      cem-master-mysql:
-        flyway:
-          enabled: false
-          # 允许脚本插入中间版本号
-          out-of-order: true
-          locations:
-            - "sqls/cem-mysql"
-      cem-slave-mysql:
-        flyway:
-          # 从库的所有变动都跟随主库
-          enabled: false
-      payment-mysql:
-        flyway:
-          enabled: false
-          out-of-order: true
-          locations:
-            - "sqls/payment-mysql"
-      payment-slave-mysql:
-        flyway:
-          enabled: false
 
 
 

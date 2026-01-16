@@ -12,8 +12,8 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -146,7 +146,7 @@ public class CdcRunner implements ApplicationRunner {
             configuration.setString("pipeline.operator-chaining.enabled", "false");
             configuration.setString("parallelism.default", "1");
             configuration.setString("execution.checkpointing.min-pause", "10000");
-            // configuration.setInteger("state.checkpoints.num-retained", 2);
+            configuration.setInteger("state.checkpoints.num-retained", 2);
 
             if (true) {
                 // 从checkpoint 启动
@@ -155,26 +155,26 @@ public class CdcRunner implements ApplicationRunner {
             }
             env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration);
 
-            // 1. 开启周期性Checkpoint，间隔30秒（本地调试可缩短，如5秒=5000ms）
+            // 1. 开启周期性Checkpoint，间隔60秒
             env.enableCheckpointing(60_000);
             // 2. 设置状态后端：Flink 1.18 推荐使用 HashMapStateBackend（内存管理）或 EmbeddedRocksDBStateBackend
-            env.setStateBackend(new HashMapStateBackend());
-            // 3. 设置 Checkpoint 存储路径（存储到本地文件系统）
-            // 注意：Windows 环境下路径示例 "file:///D:/flink-checkpoints"
-            //      Linux/Mac 环境下路径示例 "file:///tmp/flink-checkpoints"
+            env.setStateBackend(new EmbeddedRocksDBStateBackend(true));
+            // 3. 设置 Checkpoint 存储路径（文件系统，实现状态的文件持久化，即「文件型状态后端」核心）
+            // 本地文件系统：Windows 格式 file:///E:\\tmp\\cem-cdc\\checkpoints，Linux/Mac 格式 file:///tmp/flink-checkpoints
+            // 分布式文件系统（生产环境）：hdfs://xxx:9000/flink/checkpoints 或 oss://xxx/flink/checkpoints
             env.getCheckpointConfig().setCheckpointStorage("file:///E:\\tmp\\cem-cdc\\checkpoints");
 
-            // 4. (可选) 高级配置
+            // 4. 高级配置（保障文件型Checkpoint的可靠性）
             CheckpointConfig ckConfig = env.getCheckpointConfig();
             // 确保 Checkpointing 模式为 EXACTLY_ONCE（默认即是）
             // ckConfig.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
             ckConfig.setCheckpointingMode(CheckpointingMode.AT_LEAST_ONCE); // 至少一次
-            // 任务取消后保留 Checkpoint 数据（方便调试查看文件）
+            // 任务取消后保留文件型Checkpoint数据（核心：文件存储的Checkpoint不会被删除，可用于后续恢复）
             ckConfig.setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
-            // 设置 Checkpoint 超时时间
+            // 设置 Checkpoint 超时时间（10分钟）
             ckConfig.setCheckpointTimeout(600_000);
 
-            // 禁止失败重试：一旦出错，立即停止任务
+            // 禁止失败重试：一旦出错，立即停止任务（本地调试用）
             env.setRestartStrategy(RestartStrategies.noRestart());
         }
         databaseSync

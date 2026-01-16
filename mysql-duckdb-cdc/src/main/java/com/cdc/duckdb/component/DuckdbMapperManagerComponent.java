@@ -11,8 +11,10 @@ import org.apache.duckdb.sink.RecordDto;
 import org.apache.ibatis.binding.MapperRegistry;
 import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.SqlSessionFactory;
+import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.lang.reflect.Field;
@@ -30,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class DuckdbMapperManagerComponent {
     private final SqlSessionFactory sqlSessionFactory;
+    private final SqlSessionTemplate sqlSessionTemplate;
     private final GenericApplicationContext genericApplicationContext;
     // 每一张表对应的Entity
     private final Map<String, Class<? extends BaseEntity>> tableEntityMapping = new ConcurrentHashMap<>();
@@ -49,21 +52,30 @@ public class DuckdbMapperManagerComponent {
 
     public void registerMapperBean(SourceSchema schema) throws Exception {
         String tableName = schema.getTableName();
+        Assert.hasText(tableName, "表名不能为空");
 
+        // 1. 动态生成 Entity 和 Mapper 类（保持不变）
         Class<? extends BaseEntity> entityClass = JavassistDynamicClassGenerator.generateDynamicEntity(schema, "com.cdc.duckdb.mp.entity", schema.getTableName() + "_entity");
         Class<?> mapperClass = JavassistDynamicClassGenerator.generateDynamicMapper("com.cdc.duckdb.mp.mapper", schema.getTableName() + "_mapper", entityClass);
 
+        // 2. 注册 Mapper 到 MyBatis 注册表（必须，让 MyBatis 识别 Mapper 接口和 SQL 定义）
         Configuration configuration = sqlSessionFactory.getConfiguration();
         MapperRegistry mapperRegistry = configuration.getMapperRegistry();
-        mapperRegistry.addMapper(mapperClass); // 注册到MyBatis（必须）
+        mapperRegistry.addMapper(mapperClass);
 
-        BaseMapperDuckdb<?> baseMapper = (BaseMapperDuckdb<?>) configuration.getMapper(mapperClass, sqlSessionFactory.openSession(true));
+        BaseMapperDuckdb<?> baseMapper = (BaseMapperDuckdb<?>) sqlSessionTemplate.getMapper(mapperClass);
 
+        // 4. 验证 Mapper 对象有效性
+        Assert.notNull(baseMapper, "动态生成 Mapper 代理对象失败，表名：" + tableName);
+
+        // 5. 存储 Entity 类映射（后续实例化使用，保持不变）
         tableEntityMapping.put(tableName, entityClass);
 
-        String beanName = baseMapper.getClass().getSimpleName();
+        // 6. 注册 Mapper 到 Spring 容器，由 Spring 托管（后续复用该 Bean，无连接泄露风险）
+        String beanName = mapperClass.getSimpleName(); // 用 Mapper 接口类名作为 Bean 名，更规范
         genericApplicationContext.registerBean(beanName, BaseMapperDuckdb.class, () -> baseMapper);
 
+        // 7. 从 Spring 容器获取 Mapper Bean，存储到映射表（供后续业务使用）
         BaseMapperDuckdb<?> baseMapperBean = genericApplicationContext.getBean(beanName, BaseMapperDuckdb.class);
         mapperBeanMapping.put(tableName, baseMapperBean);
     }

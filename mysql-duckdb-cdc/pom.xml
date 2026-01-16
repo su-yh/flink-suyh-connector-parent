@@ -102,6 +102,14 @@
         </dependency>
 
         <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-statebackend-rocksdb</artifactId>
+            <version>${flink.version}</version>
+            <!-- 生产环境打包时可设为 provided（集群已部署该依赖），本地调试可移除 provided -->
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
 <!--            <version>${httpcomponents.version}</version>-->

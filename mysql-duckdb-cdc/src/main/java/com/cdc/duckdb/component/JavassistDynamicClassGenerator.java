@@ -7,11 +7,13 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.cdc.duckdb.mp.ann.TbColumn;
 import com.cdc.duckdb.mp.entity.BaseEntity;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
+import javassist.CannotCompileException;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtField;
 import javassist.CtMethod;
 import javassist.Modifier;
+import javassist.NotFoundException;
 import javassist.bytecode.AnnotationsAttribute;
 import javassist.bytecode.ConstPool;
 import javassist.bytecode.annotation.Annotation;
@@ -21,6 +23,7 @@ import javassist.bytecode.annotation.StringMemberValue;
 import org.apache.doris.flink.catalog.doris.DuckdbFieldSchema;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.ibatis.javassist.bytecode.SignatureAttribute;
+import org.springframework.lang.NonNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -211,37 +214,33 @@ public class JavassistDynamicClassGenerator {
     /**
      * 原有动态 Mapper 生成方法（优化：支持传入动态生成的Entity Class）
      */
-    public static Class<?> generateDynamicMapper(String mapperPackage, String mapperClassName, Class<?> entityClass) {
-        try {
-            ClassPool pool = ClassPool.getDefault();
+    @NonNull
+    public static Class<?> generateDynamicMapper(String mapperPackage, String mapperClassName, Class<?> entityClass) throws CannotCompileException, NotFoundException {
+        ClassPool pool = ClassPool.getDefault();
 
-            // 1. 获取 BaseMapperDuckdb 的 CtClass
-            CtClass baseMapperCt = pool.get(BaseMapperDuckdb.class.getName());
+        // 1. 获取 BaseMapperDuckdb 的 CtClass
+        CtClass baseMapperCt = pool.get(BaseMapperDuckdb.class.getName());
 
-            // 2. 构建 Mapper 接口的完整类名
-            String fullMapperClassName = mapperPackage + "." + mapperClassName;
-            CtClass mapperCt = pool.makeInterface(fullMapperClassName, baseMapperCt);
+        // 2. 构建 Mapper 接口的完整类名
+        String fullMapperClassName = mapperPackage + "." + mapperClassName;
+        CtClass mapperCt = pool.makeInterface(fullMapperClassName, baseMapperCt);
 
-            // 3. 构建泛型签名（绑定动态生成的Entity）
-            SignatureAttribute.ClassSignature ac = new SignatureAttribute.ClassSignature(
-                    null, null,
-                    new SignatureAttribute.ClassType[]{
-                            new SignatureAttribute.ClassType(BaseMapperDuckdb.class.getName(),
-                                    new SignatureAttribute.TypeArgument[]{
-                                            new SignatureAttribute.TypeArgument(
-                                                    new SignatureAttribute.ClassType(entityClass.getName())
-                                            )
-                                    })
-                    });
+        // 3. 构建泛型签名（绑定动态生成的Entity）
+        SignatureAttribute.ClassSignature ac = new SignatureAttribute.ClassSignature(
+                null, null,
+                new SignatureAttribute.ClassType[]{
+                        new SignatureAttribute.ClassType(BaseMapperDuckdb.class.getName(),
+                                new SignatureAttribute.TypeArgument[]{
+                                        new SignatureAttribute.TypeArgument(
+                                                new SignatureAttribute.ClassType(entityClass.getName())
+                                        )
+                                })
+                });
 
-            // 4. 设置泛型签名并转换为 Class
-            mapperCt.setGenericSignature(ac.encode());
+        // 4. 设置泛型签名并转换为 Class
+        mapperCt.setGenericSignature(ac.encode());
 
-            return mapperCt.toClass();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        return mapperCt.toClass();
     }
 }
 
