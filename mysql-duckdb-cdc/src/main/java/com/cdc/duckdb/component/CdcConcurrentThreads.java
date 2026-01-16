@@ -34,7 +34,7 @@ public class CdcConcurrentThreads {
         }
         if (scheduledExecutor == null) {
             scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-            scheduledExecutor.scheduleAtFixedRate(this::flushTimer, 30, 1, TimeUnit.SECONDS);
+            scheduledExecutor.scheduleAtFixedRate(this::flushTimer, 10, 1, TimeUnit.SECONDS);
         }
     }
 

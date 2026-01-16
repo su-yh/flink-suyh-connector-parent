@@ -113,7 +113,7 @@ public class DuckdbMysqlDatabaseSync extends DuckdbDatabaseSync {
                                 metaData.getTables(
                                         tableCatalog, null, "%", new String[] {"TABLE"})) {
                             while (tables.next()) {
-                                String tableName = tables.getString(DatabaseSyncConfig.TABLE_NAME);
+                                String tableName = tables.getString(DatabaseSyncConfig.TABLE_NAME).toLowerCase();
                                 String tableComment = tables.getString(DatabaseSyncConfig.REMARKS);
                                 if (!isSyncNeeded(tableName)) {
                                     continue;

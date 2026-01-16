@@ -60,7 +60,7 @@ public abstract class JdbcSourceSchema extends SourceSchema {
         LOG.debug("Starting to get column info for table: {}", tableName);
         try (ResultSet rs = metaData.getColumns(databaseName, schemaName, tableName, null)) {
             while (rs.next()) {
-                String fieldName = rs.getString("COLUMN_NAME");
+                String fieldName = rs.getString("COLUMN_NAME").toLowerCase(); // 全部转换为小写
                 String comment = rs.getString("REMARKS");
                 String fieldType = rs.getString("TYPE_NAME");
                 Integer precision = rs.getInt("COLUMN_SIZE");
@@ -95,7 +95,7 @@ public abstract class JdbcSourceSchema extends SourceSchema {
         List<String> primaryKeys = new ArrayList<>();
         try (ResultSet rs = metaData.getPrimaryKeys(databaseName, schemaName, tableName)) {
             while (rs.next()) {
-                String fieldName = rs.getString("COLUMN_NAME");
+                String fieldName = rs.getString("COLUMN_NAME").toLowerCase();
                 primaryKeys.add(fieldName);
             }
         }
@@ -115,7 +115,7 @@ public abstract class JdbcSourceSchema extends SourceSchema {
         try (ResultSet rs =
                 metaData.getIndexInfo(databaseName, schemaName, tableName, true, true)) {
             while (rs.next()) {
-                String columnName = rs.getString("COLUMN_NAME");
+                String columnName = rs.getString("COLUMN_NAME").toLowerCase();
                 String indexName = rs.getString("INDEX_NAME");
                 if (firstIndexName == null) {
                     firstIndexName = indexName;

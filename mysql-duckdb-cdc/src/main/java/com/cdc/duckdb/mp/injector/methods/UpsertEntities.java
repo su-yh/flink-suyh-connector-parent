@@ -66,7 +66,8 @@ public class UpsertEntities extends AbstractMethod {
         sb.append("\n");
         sb.append("ON CONFLICT\n");
         sb.append("DO UPDATE SET ");
-        String excluded = columns.stream().map(tbColumn -> tbColumn.value() + " = EXCLUDED." + tbColumn.value()).collect(Collectors.joining(","));
+        String excluded = columns.stream().filter(tbColumn -> !tbColumn.primaryKey())
+                .map(tbColumn -> tbColumn.value() + "=EXCLUDED." + tbColumn.value()).collect(Collectors.joining(","));
         sb.append(excluded);
         sb.append("\n");
         sb.append("</script>");

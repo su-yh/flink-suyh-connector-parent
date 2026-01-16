@@ -1,9 +1,11 @@
 package com.cdc.duckdb.component;
 
 
+import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cdc.duckdb.mp.ann.TbColumn;
+import com.cdc.duckdb.mp.entity.BaseEntity;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
 import javassist.ClassPool;
 import javassist.CtClass;
@@ -15,7 +17,6 @@ import javassist.bytecode.ConstPool;
 import javassist.bytecode.annotation.Annotation;
 import javassist.bytecode.annotation.BooleanMemberValue;
 import javassist.bytecode.annotation.StringMemberValue;
-import lombok.Data;
 import org.apache.doris.flink.catalog.doris.DuckdbFieldSchema;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.ibatis.javassist.bytecode.SignatureAttribute;
@@ -34,20 +35,15 @@ public class JavassistDynamicClassGenerator {
      * @return 动态生成的Entity Class对象
      * @throws Exception 生成过程中的异常（Javassist操作、反射相关）
      */
-    public static Class<?> generateDynamicEntity(SourceSchema sourceSchema, String entityPackage, String entityClassName) throws Exception {
+    public static BaseEntity generateDynamicEntity(SourceSchema sourceSchema, String entityPackage, String entityClassName) throws Exception {
         // 1. 初始化 Javassist ClassPool（类池，用于创建/获取CtClass）
         ClassPool classPool = ClassPool.getDefault();
-        // 补充Lombok和MyBatis-Plus的类路径（避免类找不到）
-        classPool.importPackage("lombok.Data");
-        classPool.importPackage("com.baomidou.mybatisplus.annotation.TableName");
-        classPool.importPackage("com.baomidou.mybatisplus.annotation.IdType");
+        classPool.importPackage(TableName.class.getName());
+        classPool.importPackage(IdType.class.getName());
 
         // 2. 构建完整的类名（包名+类名）
         String fullEntityClassName = entityPackage + "." + entityClassName;
         CtClass ctEntityClass = classPool.makeClass(fullEntityClassName);
-
-        // 3. 为Entity添加 Lombok @Data 注解（自动生成getter/setter/toString等）
-        addDataAnnotation(ctEntityClass);
 
         // 4. 为Entity添加 MyBatis-Plus @TableName 注解（关联数据库表名）
         String tableName = sourceSchema.getTableName();
@@ -60,23 +56,10 @@ public class JavassistDynamicClassGenerator {
             generateEntityField(ctEntityClass, column);
         }
 
-        // ctEntityClass.writeFile("./debug");
+        ctEntityClass.writeFile("./debug");
 
         // 6. 将 CtClass 转换为实际的 Class 对象并返回
-        return ctEntityClass.toClass();
-    }
-
-    /**
-     * 为动态类添加 @Data 注解
-     */
-    private static void addDataAnnotation(CtClass ctClass) {
-        ConstPool constPool = ctClass.getClassFile().getConstPool();
-        // 创建 @Data 注解对象
-        AnnotationsAttribute dataAnnotationAttr = new AnnotationsAttribute(constPool, AnnotationsAttribute.visibleTag);
-        Annotation dataAnnotation = new Annotation(Data.class.getName(), constPool);
-        dataAnnotationAttr.addAnnotation(dataAnnotation);
-        // 将注解添加到类上
-        ctClass.getClassFile().addAttribute(dataAnnotationAttr);
+        return (BaseEntity) ctEntityClass.toClass();
     }
 
     /**
@@ -108,8 +91,7 @@ public class JavassistDynamicClassGenerator {
             throw new IllegalArgumentException("不支持的MySQL字段类型：" + mysqlColumn.getTypeString());
         }
 
-        // 2. 构建 Java 成员变量名（默认：数据库字段名下划线转驼峰，如 user_id -> userId）
-        String fieldName = underlineToCamel(mysqlColumn.getName());
+        String fieldName = mysqlColumn.getName();
         CtField ctField = new CtField(fieldType, fieldName, ctEntityClass);
 
         // 3. 设置成员变量修饰符为 private（符合JavaBean规范）
@@ -239,7 +221,7 @@ public class JavassistDynamicClassGenerator {
             // 4. 设置泛型签名并转换为 Class
             mapperCt.setGenericSignature(ac.encode());
 
-            // mapperCt.writeFile("./debug");
+            mapperCt.writeFile("./debug");
 
             return mapperCt.toClass();
         } catch (Exception e) {
