@@ -47,6 +47,10 @@ public class TableRecordBuffer {
 
     public void upsertEntitiesAndReset(Function<String, BaseMapperDuckdb<?>> obtainMapperCallback) {
         tableEntitiesMapping.forEach((tableName, entities) -> {
+            if (entities == null || entities.isEmpty()) {
+                return;
+            }
+
             BaseMapperDuckdb<?> baseMapperDuckdb = obtainMapperCallback.apply(tableName);
             if (baseMapperDuckdb == null) {
                 log.error("cannot found {}, by table name: {}", BaseMapperDuckdb.class.getSimpleName(), tableName);

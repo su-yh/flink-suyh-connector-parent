@@ -26,7 +26,7 @@ public class CdcConcurrentThreads {
     public synchronized void init() {
         if (writeQueue == null) {
             writeQueue = new ArrayBlockingQueue<>(1);   // 只能一个元素
-            writeQueue.add(new TableRecordBuffer(10));
+            writeQueue.add(new TableRecordBuffer(1000));
         }
         if (duckdbWriterThread == null) {
             duckdbWriterThread = new DuckdbWriterThread();
@@ -93,7 +93,7 @@ public class CdcConcurrentThreads {
                 } else {
                     // 将空buffer 还回去
                     writeQueue.put(tableRecordBuffer);
-                    log.info("将空buffer 还回写队列");
+                    log.trace("将空buffer 还回写队列");
                 }
             }
         } catch (Exception e) {
@@ -122,7 +122,7 @@ public class CdcConcurrentThreads {
                         // ###########################
                         tableRecordBuffer.reset();
                         writeQueue.put(tableRecordBuffer);
-                        log.info("buffer 处理完，还回写队列");
+                        log.trace("buffer 处理完，还回写队列");
                     }
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
