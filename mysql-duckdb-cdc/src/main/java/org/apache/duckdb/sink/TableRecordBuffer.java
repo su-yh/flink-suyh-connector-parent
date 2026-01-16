@@ -46,7 +46,7 @@ public class TableRecordBuffer {
         return true;
     }
 
-    public void upsertEntities(Function<String, BaseMapperDuckdb<?>> obtainMapperCallback) {
+    public void upsertEntitiesAndReset(Function<String, BaseMapperDuckdb<?>> obtainMapperCallback) {
         tableEntitiesMapping.forEach((tableName, entities) -> {
             BaseMapperDuckdb<?> baseMapperDuckdb = obtainMapperCallback.apply(tableName);
             if (baseMapperDuckdb == null) {
@@ -56,6 +56,7 @@ public class TableRecordBuffer {
 
             // 这里不用管分批，因为capacity 已经限制了。
             baseMapperDuckdb.upsertObjects(entities);
+            entities.clear();
         });
     }
 

@@ -1,5 +1,7 @@
 package com.cdc.duckdb.component;
 
+import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.duckdb.sink.TableRecordBuffer;
 
@@ -7,13 +9,16 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /**
  * @author suyh
  * @since 2026-01-16
  */
+@RequiredArgsConstructor
 @Slf4j
 public class CdcConcurrentThreads {
+    private final Function<String, BaseMapperDuckdb<?>> obtainMapperCallback;
     private ArrayBlockingQueue<TableRecordBuffer> writeQueue;
     private DuckdbWriterThread duckdbWriterThread;
     private ScheduledExecutorService scheduledExecutor;
@@ -112,6 +117,7 @@ public class CdcConcurrentThreads {
                         log.info("从读队列中取到buffer");
                         // TODO: suyh - 待实现！！！
                         // ... 将buffer 中的数据全部写到duckdb
+                        tableRecordBuffer.upsertEntitiesAndReset(obtainMapperCallback);
 
                         // ###########################
                         tableRecordBuffer.reset();

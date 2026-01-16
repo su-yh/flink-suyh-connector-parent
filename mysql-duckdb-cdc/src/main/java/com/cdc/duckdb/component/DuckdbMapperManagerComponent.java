@@ -42,7 +42,7 @@ public class DuckdbMapperManagerComponent {
         DuckDBWriter.duckdbMapperManagerComponent = this;
 
         if (cdcConcurrentThreads == null) {
-            cdcConcurrentThreads = new CdcConcurrentThreads();
+            cdcConcurrentThreads = new CdcConcurrentThreads(mapperBeanMapping::get);
             cdcConcurrentThreads.init();
         }
     }
