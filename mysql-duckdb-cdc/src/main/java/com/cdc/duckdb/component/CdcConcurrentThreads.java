@@ -68,9 +68,9 @@ public class CdcConcurrentThreads {
 
     // 提供给flink sink 调用
     public void write(String tbName, Object entity) throws InterruptedException {
-        log.info("write, table name: {}, start...",  tbName);
+        log.trace("write, table name: {}, start...",  tbName);
         TableRecordBuffer tableRecordBuffer = writeQueue.take();
-        log.info("write, table name: {}, finished",  tbName);
+        log.trace("write, table name: {}, finished",  tbName);
         boolean full = tableRecordBuffer.put(tbName, entity);
         if (full) {
             doFlush(tableRecordBuffer);
