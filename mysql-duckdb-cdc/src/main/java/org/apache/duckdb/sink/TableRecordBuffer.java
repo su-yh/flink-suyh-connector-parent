@@ -60,6 +60,7 @@ public class TableRecordBuffer {
             // 这里不用管分批，因为capacity 已经限制了。
             long beforeTs = System.currentTimeMillis();
             baseMapperDuckdb.upsertObjects(entities);
+            // baseMapperDuckdb.insertObjects(entities);
             long lastTs = System.currentTimeMillis();
             log.info("upsertEntities, table name: {}, size: {}, time: {}ms", tableName, entities.size(), (lastTs - beforeTs));
             entities.clear();

@@ -19,6 +19,7 @@ public interface BaseMapperDuckdb<T> extends BaseMapper<T> {
 
     void createTableIfNotExists();
     void upsertEntities(@Param(ENTITIES) Collection<T> entities);
+    void insertEntities(@Param(ENTITIES) Collection<T> entities);
 
     default void upsertObjects(Collection<?> objs) {
         List<T> entities = new ArrayList<>();
@@ -27,6 +28,15 @@ public interface BaseMapperDuckdb<T> extends BaseMapper<T> {
         }
 
         upsertEntities(entities);
+    }
+
+    default void insertObjects(Collection<?> objs) {
+        List<T> entities = new ArrayList<>();
+        for (Object obj : objs) {
+            entities.add((T)obj);
+        }
+
+        insertEntities(entities);
     }
 }
 
