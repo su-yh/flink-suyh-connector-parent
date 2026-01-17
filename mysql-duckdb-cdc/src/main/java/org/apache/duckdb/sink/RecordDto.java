@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.debezium.data.Envelope;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.util.Map;
 
 /**
@@ -13,7 +14,10 @@ import java.util.Map;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Data
-public class RecordDto {
+public class RecordDto implements Serializable {
+
+    private static final long serialVersionUID = 2620002976050717551L;
+
     /**
      * @see Envelope.Operation#code()
      */
