@@ -1,6 +1,5 @@
 package com.cdc.duckdb.component;
 
-import com.cdc.duckdb.mp.ann.TbColumn;
 import com.cdc.duckdb.mp.entity.BaseEntity;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -19,9 +18,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.math.BigDecimal;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -84,73 +80,6 @@ public class DuckdbMapperManagerComponent {
 
     public BaseMapperDuckdb<?> getMapperBean(String tableName) {
         return mapperBeanMapping.get(tableName);
-    }
-
-    private void entityPropertiesSetter(Class<?> modelClass, Object entity, Map<String, Object> properties) throws IllegalAccessException {
-        Field[] fields = modelClass.getDeclaredFields();
-
-        for (Field field : fields) {
-            // 跳过静态属性
-            if (Modifier.isStatic(field.getModifiers())) {
-                continue;
-            }
-
-            // 判断 @TbColumn 注解
-            if (field.isAnnotationPresent(TbColumn.class)) {
-                TbColumn tbColumn = field.getAnnotation(TbColumn.class);
-                if (tbColumn == null) {
-                    continue;
-                }
-            }
-
-            field.setAccessible(true);
-
-            String fieldName = field.getName();
-            Object value = properties.get(fieldName);
-
-            if (value != null) {
-                Class<?> fieldType = field.getType();
-                if (BigDecimal.class.equals(fieldType)) {
-                    if (value instanceof Number) {
-                        Number numberValue = (Number) value;
-                        value = BigDecimal.valueOf(numberValue.doubleValue());
-                    } else if (value instanceof String) {
-                        try {
-                            String strValue = (String) value;
-                            value = new BigDecimal(strValue);
-                        } catch (NumberFormatException e) {
-                            throw new IllegalArgumentException("字符串无法转换为有效BigDecimal，字段名：" + field.getName() + "，待转换值：" + value, e);
-                        }
-                    }
-                } else if (Long.class.equals(fieldType)) {
-                    if (value instanceof Integer) {
-                        Integer intValue = (Integer) value;
-                        value = intValue.longValue();
-                    } else if (value instanceof Number) {
-                        Number numberValue = (Number) value;
-                        value = numberValue.longValue();
-                    } else if (value instanceof String) {
-                        try {
-                            String strValue = (String) value;
-                            value = Long.valueOf(strValue);
-                        } catch (NumberFormatException e) {
-                            throw new IllegalArgumentException("字符串无法转换为有效Long，字段名：" + field.getName() + "，待转换值：" + value, e);
-                        }
-                    }
-                }
-            }
-
-            try {
-                field.set(entity, value);
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("字段赋值失败，字段名：" + fieldName + "，目标类型：" + field.getType().getName() + "，值类型：" + (value != null ? value.getClass().getName() : "null"), e);
-            }
-        }
-
-        Class<?> superClass = modelClass.getSuperclass();
-        if (superClass != null && superClass != Object.class) {
-            entityPropertiesSetter(superClass, entity, properties);
-        }
     }
 
     // 读和写都要允许阻塞，直到成功为止，不然flink 的checkpoint 将会出现问题。
