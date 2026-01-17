@@ -1,0 +1,18 @@
+
+-- 1. 创建账号（允许从任意IP访问，生产环境可限定具体IP，比如 192.168.8.%）
+CREATE USER 'repl_suyh_cdap_cds'@'%' IDENTIFIED BY 'repl_suyh_cdap_cds';
+
+-- 2. 授予Debezium所需的最小权限（核心）
+-- 仅授予两个全局级复制权限（无法限制到单个库，且是必需的）
+GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'repl_suyh_cdap_cds'@'%';
+
+-- 仅授予suyh_cdap_cds库的SELECT、LOCK TABLES权限（对应该库所有表）
+GRANT SELECT, LOCK TABLES ON suyh_cdap_cds.* TO 'repl_suyh_cdap_cds'@'%';
+
+-- 权限生效
+FLUSH PRIVILEGES;
+
+-- 5. 验证权限（可选，确认账号权限正确）
+SHOW GRANTS FOR 'repl_suyh_cdap_cds'@'%';
+
+

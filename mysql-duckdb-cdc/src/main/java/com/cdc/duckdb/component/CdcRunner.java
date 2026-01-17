@@ -150,7 +150,7 @@ public class CdcRunner implements ApplicationRunner {
 
             if (false) {
                 // 从checkpoint 启动
-                String checkpointPath = "file:///E:\\tmp\\cem-cdc\\checkpoints\\6eb5c92dcb5914a929054ac82dce6dd7\\chk-32\\_metadata";
+                String checkpointPath = "file:///E:\\tmp\\cem-cdc\\checkpoints\\65209216bfe70db743bc590ae8eb257a\\chk-1\\_metadata";
                 configuration.setString("execution.savepoint.path", checkpointPath);
             }
             env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration);
