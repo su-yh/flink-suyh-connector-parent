@@ -3,13 +3,17 @@ package org.apache.duckdb.sink;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
+import java.io.Serializable;
+
 /**
  * @author suyh
  * @since 2026-01-12
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Data
-public class CdcSourceMetaDto {
+public class CdcSourceMetaDto implements Serializable {
+    private static final long serialVersionUID = 7965726601653261111L;
+
     private String version; // Debezium版本
     private String connector; // 连接器类型（mysql）
     private String name; // 数据源名称

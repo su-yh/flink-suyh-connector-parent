@@ -49,7 +49,7 @@ public class CustomPrintSink extends RichSinkFunction<RecordDto> {
         int parallelism = runtimeContext.getNumberOfParallelSubtasks(); // 并行度
         String customLog = String.format(
                 "[%s] [%s] [Task-%d/%d] 数据内容。op: %s, before: %s, after: %s",
-                currentTime, logPrefix, taskId + 1, parallelism, recordDto.getOperation(), recordDto.getBefore(), recordDto.getAfter()
+                currentTime, logPrefix, taskId + 1, parallelism, recordDto.getOperation(), recordDto.getBeforeJson(), recordDto.getAfterJson()
         );
 
         // 3. 输出到控制台（模仿print()，也可输出到文件）

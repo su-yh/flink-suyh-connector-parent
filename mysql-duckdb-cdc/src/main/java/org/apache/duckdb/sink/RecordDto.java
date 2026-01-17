@@ -6,7 +6,6 @@ import io.debezium.data.Envelope;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.util.Map;
 
 /**
  * @author suyh
@@ -28,14 +27,14 @@ public class RecordDto implements Serializable {
     private Long timestamp;
 
     @JsonProperty("before")
-    private Map<String, Object> before;
+    private String beforeJson;
 
     @JsonProperty("after")
-    private Map<String, Object> after;
+    private String afterJson;
 
     @JsonProperty("source")
     private CdcSourceMetaDto source;
 
     @JsonProperty("transaction")
-    private Map<String, Object> transaction;
+    private String transaction;
 }

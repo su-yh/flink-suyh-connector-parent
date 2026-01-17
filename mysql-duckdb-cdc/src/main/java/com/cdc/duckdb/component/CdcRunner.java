@@ -148,7 +148,7 @@ public class CdcRunner implements ApplicationRunner {
             configuration.setString("execution.checkpointing.min-pause", "10000");
             configuration.setInteger("state.checkpoints.num-retained", 2);
 
-            if (true) {
+            if (false) {
                 // 从checkpoint 启动
                 String checkpointPath = "file:///E:\\tmp\\cem-cdc\\checkpoints\\6eb5c92dcb5914a929054ac82dce6dd7\\chk-32\\_metadata";
                 configuration.setString("execution.savepoint.path", checkpointPath);

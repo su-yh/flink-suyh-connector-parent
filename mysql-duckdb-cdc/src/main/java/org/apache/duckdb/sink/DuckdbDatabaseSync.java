@@ -19,6 +19,9 @@ package org.apache.duckdb.sink;
 
 import com.cdc.duckdb.component.DuckdbMapperManagerComponent;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.NullNode;
+import io.debezium.data.Envelope;
 import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.cfg.DorisConnectionOptions;
@@ -163,7 +166,55 @@ public abstract class DuckdbDatabaseSync {
                     return null;
                 }
 
-                return JsonUtils.deserialize(value, RecordDto.class);
+                JsonNode recordRoot = JsonUtils.deserialize(value, JsonNode.class);
+                if (recordRoot == null) {
+                    return null;
+                }
+
+                RecordDto dto = new RecordDto();
+
+                {
+                    JsonNode opNode = recordRoot.get(Envelope.FieldName.OPERATION);
+                    if (opNode != null && !(opNode instanceof NullNode)) {
+                        dto.setOperation(opNode.asText());
+                    }
+                }
+                {
+                    JsonNode tsNode = recordRoot.get(Envelope.FieldName.TIMESTAMP);
+                    if (tsNode != null && !(tsNode instanceof NullNode)) {
+                        dto.setTimestamp(tsNode.asLong());
+                    }
+                }
+                {
+                    JsonNode beforeNode = recordRoot.get(Envelope.FieldName.BEFORE);
+                    if (beforeNode != null && !(beforeNode instanceof NullNode)) {
+                        dto.setBeforeJson(beforeNode.toString());
+                    }
+                }
+                {
+                    JsonNode afterNode = recordRoot.get(Envelope.FieldName.AFTER);
+                    if (afterNode != null && !(afterNode instanceof NullNode)) {
+                        dto.setAfterJson(afterNode.toString());
+                    }
+                }
+                {
+                    JsonNode sourceNode = recordRoot.get(Envelope.FieldName.SOURCE);
+                    if (sourceNode != null && !(sourceNode instanceof NullNode)) {
+                        String sourceJson = sourceNode.toString();
+                        if (!StringUtils.isNullOrWhitespaceOnly(sourceJson)) {
+                            CdcSourceMetaDto source = JsonUtils.deserialize(sourceJson, CdcSourceMetaDto.class);
+                            dto.setSource(source);
+                        }
+                    }
+                }
+                {
+                    JsonNode transactionNode = recordRoot.get(Envelope.FieldName.TRANSACTION);
+                    if (transactionNode != null && !(transactionNode instanceof NullNode)) {
+                        dto.setTransaction(transactionNode.toString());
+                    }
+                }
+
+                return dto;
             }
         });
 

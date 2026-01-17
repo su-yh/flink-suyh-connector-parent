@@ -3,10 +3,12 @@ package com.cdc.duckdb.component;
 import com.cdc.duckdb.mp.ann.TbColumn;
 import com.cdc.duckdb.mp.entity.BaseEntity;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.duckdb.sink.DuckDBWriter;
+import org.apache.duckdb.sink.JsonUtils;
 import org.apache.duckdb.sink.RecordDto;
 import org.apache.ibatis.binding.MapperRegistry;
 import org.apache.ibatis.session.Configuration;
@@ -120,6 +122,21 @@ public class DuckdbMapperManagerComponent {
                             throw new IllegalArgumentException("字符串无法转换为有效BigDecimal，字段名：" + field.getName() + "，待转换值：" + value, e);
                         }
                     }
+                } else if (Long.class.equals(fieldType)) {
+                    if (value instanceof Integer) {
+                        Integer intValue = (Integer) value;
+                        value = intValue.longValue();
+                    } else if (value instanceof Number) {
+                        Number numberValue = (Number) value;
+                        value = numberValue.longValue();
+                    } else if (value instanceof String) {
+                        try {
+                            String strValue = (String) value;
+                            value = Long.valueOf(strValue);
+                        } catch (NumberFormatException e) {
+                            throw new IllegalArgumentException("字符串无法转换为有效Long，字段名：" + field.getName() + "，待转换值：" + value, e);
+                        }
+                    }
                 }
             }
 
@@ -142,7 +159,7 @@ public class DuckdbMapperManagerComponent {
         try {
             BaseEntity entity = mappingEntity(recordDto);
             cdcConcurrentThreads.write(duckdbTbName, entity);
-        } catch (InstantiationException | IllegalAccessException e) {
+        } catch (InstantiationException | IllegalAccessException | JsonProcessingException e) {
             throw new RuntimeException(e);
         }
     }
@@ -157,12 +174,10 @@ public class DuckdbMapperManagerComponent {
         return recordDto.getSource().getTable();
     }
 
-    private BaseEntity mappingEntity(RecordDto recordDto) throws InstantiationException, IllegalAccessException {
+    private BaseEntity mappingEntity(RecordDto recordDto) throws InstantiationException, IllegalAccessException, JsonProcessingException {
         String table = recordDto.getSource().getTable();
         Class<? extends BaseEntity> entityClass = tableEntityMapping.get(table);
-        BaseEntity entity = entityClass.newInstance();
-        entityPropertiesSetter(entityClass, entity, recordDto.getAfter());
-        return entity;
+        return JsonUtils.deserialize(recordDto.getAfterJson(), entityClass);
     }
 
 

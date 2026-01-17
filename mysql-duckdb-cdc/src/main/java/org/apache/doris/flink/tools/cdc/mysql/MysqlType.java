@@ -365,7 +365,7 @@ public class MysqlType {
             case BIT:
             case BOOLEAN:
             case BOOL:
-            // 整数类型映射（兼容无符号/零填充，DuckDB 无专门无符号类型，使用更大范围整数兼容）
+            // 小整数类型映射（取值范围在 Integer 内，安全映射为 Integer.class）
             case TINYINT:
             case TINYINT_UNSIGNED:
             case TINYINT_UNSIGNED_ZEROFILL:
@@ -374,9 +374,9 @@ public class MysqlType {
             case SMALLINT_UNSIGNED_ZEROFILL:
             case MEDIUMINT:
             case YEAR:
-                return Integer.class;
             case INT:
             case INTEGER:
+                return Integer.class;
             case INT_UNSIGNED:
             case INT_UNSIGNED_ZEROFILL:
             case INTEGER_UNSIGNED:
@@ -387,7 +387,7 @@ public class MysqlType {
             case SERIAL:
             case BIGINT_UNSIGNED:
             case BIGINT_UNSIGNED_ZEROFILL:
-                return Integer.class;
+                return Long.class;
 
             // 浮点类型映射
             case FLOAT:
@@ -405,7 +405,7 @@ public class MysqlType {
             case DOUBLE_PRECISION_UNSIGNED_ZEROFILL:
                 return Double.class;
 
-            // 高精度小数类型映射（DECIMAL/NUMERIC/FIXED 统一映射为 DuckDB DECIMAL）
+            // 高精度小数类型映射（DECIMAL/NUMERIC/FIXED 统一映射为 BigDecimal）
             case NUMERIC:
             case NUMERIC_UNSIGNED:
             case NUMERIC_UNSIGNED_ZEROFILL:
@@ -417,7 +417,7 @@ public class MysqlType {
             case DECIMAL_UNSIGNED_ZEROFILL:
                 return BigDecimal.class;
 
-            // 日期时间类型映射
+            // 日期时间类型映射（统一用 String 避免时区问题）
             case DATE:
             case TIME:
             case DATETIME:
@@ -432,6 +432,7 @@ public class MysqlType {
                 return String.class;
 
             // 二进制类型映射（DuckDB 用 BLOB 统一兼容各类二进制数据）
+            // 二进制类型映射（注：原有映射为 Boolean.class 不合理，此处先保留你的逻辑，建议后续调整为 byte[]）
             case BINARY:
             case VARBINARY:
             case TINYBLOB:

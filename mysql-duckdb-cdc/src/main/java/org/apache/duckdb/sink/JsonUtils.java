@@ -1,9 +1,13 @@
 package org.apache.duckdb.sink;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.json.JsonReadFeature;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.type.ArrayType;
@@ -14,13 +18,20 @@ import org.apache.flink.util.StringUtils;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 
 @Slf4j
 public class JsonUtils {
-    private static volatile ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER;
 
-    public static void initMapper(ObjectMapper mapper) {
-        OBJECT_MAPPER = mapper;
+    static {
+        OBJECT_MAPPER = JsonMapper.builder()
+                .defaultTimeZone(TimeZone.getDefault())
+                .serializationInclusion(JsonInclude.Include.NON_NULL)
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS)
+                .enable(JsonReadFeature.ALLOW_SINGLE_QUOTES)
+                .build();
     }
 
     /**
