@@ -4,7 +4,7 @@ import com.cdc.duckdb.mp.entity.BaseEntity;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.duckdb.sink.QueueItem;
+import org.apache.duckdb.sink.TableRecordBuffer;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executors;
@@ -18,14 +18,14 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 @Slf4j
 public class CdcConcurrentThreads {
-    private ArrayBlockingQueue<QueueItem> writeQueue;
+    private ArrayBlockingQueue<TableRecordBuffer> writeQueue;
     private DuckdbWriterThread duckdbWriterThread;
     private ScheduledExecutorService scheduledExecutor;
 
     public synchronized void init() {
         if (writeQueue == null) {
-            writeQueue = new ArrayBlockingQueue<>(1);   // 只能一个元素
-            writeQueue.add(QueueItem.INSTANCE);
+            writeQueue = new ArrayBlockingQueue<>(1);   // 有且只能一个元素
+            writeQueue.add(TableRecordBuffer.INSTANCE);
         }
         if (duckdbWriterThread == null) {
             duckdbWriterThread = new DuckdbWriterThread();
@@ -68,13 +68,13 @@ public class CdcConcurrentThreads {
     // 提供给flink sink 调用
     public void write(String op, String tbName, BaseEntity entity) throws InterruptedException {
         log.trace("write, table name: {}, start...",  tbName);
-        QueueItem tableRecordBuffer = writeQueue.take();
+        TableRecordBuffer tableRecordBuffer = writeQueue.take();
         log.trace("write, table name: {}, finished",  tbName);
         boolean full = tableRecordBuffer.put(op, tbName, entity);
         if (full) {
             doFlush(tableRecordBuffer);
         } else {
-            recycleBuffer(tableRecordBuffer);
+            restoreBuffer(tableRecordBuffer);
         }
     }
 
@@ -84,12 +84,12 @@ public class CdcConcurrentThreads {
     }
 
     public void syncFlush() {
-        QueueItem tableRecordBuffer = takeBuffer();
+        TableRecordBuffer tableRecordBuffer = takeBuffer();
         tableRecordBuffer.flush();
-        recycleBuffer(tableRecordBuffer);
+        restoreBuffer(tableRecordBuffer);
     }
 
-    private QueueItem takeBuffer() {
+    private TableRecordBuffer takeBuffer() {
         int count = 3;
         for (int i = 0; i < count; i++) {
             try {
@@ -104,13 +104,13 @@ public class CdcConcurrentThreads {
 
     private void flush() {
         try {
-            QueueItem tableRecordBuffer = writeQueue.poll();
+            TableRecordBuffer tableRecordBuffer = writeQueue.poll();
             if (tableRecordBuffer != null) {
                 if (!tableRecordBuffer.isEmpty()) {
                     doFlush(tableRecordBuffer);
                 } else {
                     log.trace("将空buffer 还回写队列");
-                    recycleBuffer(tableRecordBuffer);
+                    restoreBuffer(tableRecordBuffer);
                 }
             }
         } catch (Exception e) {
@@ -118,11 +118,11 @@ public class CdcConcurrentThreads {
         }
     }
 
-    private void doFlush(QueueItem tableRecordBuffer) throws InterruptedException {
+    private void doFlush(TableRecordBuffer tableRecordBuffer) throws InterruptedException {
         duckdbWriterThread.write(tableRecordBuffer);
     }
 
-    private void recycleBuffer(QueueItem tableRecordBuffer) {
+    private void restoreBuffer(TableRecordBuffer tableRecordBuffer) {
         int count = 3;
         for (int i = 0; i < count; i++) {
             try {
@@ -140,8 +140,10 @@ public class CdcConcurrentThreads {
         int count = 1000;
         for (int i = 0; i < count; i++) {
             try {
-                QueueItem queueItem = writeQueue.take();
-                queueItem.register(tableName, baseMapperBean);
+                TableRecordBuffer tableRecordBuffer = writeQueue.take();
+                tableRecordBuffer.register(tableName, baseMapperBean);
+                restoreBuffer(tableRecordBuffer);
+                return;
             } catch (InterruptedException e) {
                 log.warn("register table({}) failed, retry {}/{}", tableName, (i + 1), count, e);
             }
@@ -151,18 +153,18 @@ public class CdcConcurrentThreads {
 
     // ####################################################################################
     private class DuckdbWriterThread extends Thread {
-        private final ArrayBlockingQueue<QueueItem> readQueue = new ArrayBlockingQueue<>(1);
+        private final ArrayBlockingQueue<TableRecordBuffer> readQueue = new ArrayBlockingQueue<>(1);
 
         @Override
         public void run() {
             while (true) {
                 try {
-                    QueueItem tableRecordBuffer = readQueue.poll(1, TimeUnit.SECONDS);
+                    TableRecordBuffer tableRecordBuffer = readQueue.poll(1, TimeUnit.SECONDS);
                     if (tableRecordBuffer != null) {
                         log.trace("从读队列中取到buffer");
                         tableRecordBuffer.flush();
 
-                        recycleBuffer(tableRecordBuffer);
+                        restoreBuffer(tableRecordBuffer);
                         log.trace("buffer 处理完，还回写队列");
                     }
                 } catch (InterruptedException e) {
@@ -171,7 +173,7 @@ public class CdcConcurrentThreads {
             }
         }
 
-        public void write(QueueItem tableRecordBuffer) throws InterruptedException {
+        public void write(TableRecordBuffer tableRecordBuffer) throws InterruptedException {
             readQueue.put(tableRecordBuffer);
         }
     }

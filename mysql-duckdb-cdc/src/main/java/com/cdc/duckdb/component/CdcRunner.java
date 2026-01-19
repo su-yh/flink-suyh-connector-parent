@@ -54,6 +54,7 @@ public class CdcRunner implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments appArgs) throws Exception {
+        log.info("init...");
         String[] opArgs = Arrays.copyOfRange(args, 1, args.length);
         MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
         jobClient = createMySQLSyncDuckdb(params, this.duckdbMapperManagerComponent);
@@ -101,6 +102,7 @@ public class CdcRunner implements ApplicationRunner {
 
     @NonNull
     private static JobClient createMySQLSyncDuckdb(MultipleParameterTool params, DuckdbMapperManagerComponent duckdbMapperManagerComponent) throws Exception {
+        log.info("createMySQLSyncDuckdb");
         Preconditions.checkArgument(params.has(DatabaseSyncConfig.MYSQL_CONF));
         Map<String, String> mysqlMap = getConfigMap(params, DatabaseSyncConfig.MYSQL_CONF);
         Configuration mysqlConfig = Configuration.fromMap(mysqlMap);
@@ -116,6 +118,7 @@ public class CdcRunner implements ApplicationRunner {
             Configuration config,
             SourceConnector sourceConnector)
             throws Exception {
+        log.info("syncDuckdb init flink job");
         String jobName = params.get(DatabaseSyncConfig.JOB_NAME);
         String database = params.get(DatabaseSyncConfig.DATABASE);
         String tablePrefix = params.get(DatabaseSyncConfig.TABLE_PREFIX);
@@ -196,6 +199,7 @@ public class CdcRunner implements ApplicationRunner {
                 .setSchemaChangeMode(schemaChangeMode)
                 .create();
 
+        log.info("syncDuckdb databaseSync.build()");
         boolean needExecute = databaseSync.build();
         if (!needExecute) {
             // create table only
@@ -209,6 +213,8 @@ public class CdcRunner implements ApplicationRunner {
                             config.getString(
                                     DatabaseSyncConfig.DATABASE_NAME, DatabaseSyncConfig.DB));
         }
+
+        log.info("syncDuckdb env.executeAsync(jobName)");
         return env.executeAsync(jobName);
     }
 

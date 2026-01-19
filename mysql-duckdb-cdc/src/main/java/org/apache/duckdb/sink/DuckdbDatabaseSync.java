@@ -22,11 +22,8 @@ import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.NullNode;
 import io.debezium.data.Envelope;
-import org.apache.doris.flink.catalog.doris.DorisSystem;
 import org.apache.doris.flink.catalog.doris.TableSchema;
-import org.apache.doris.flink.cfg.DorisConnectionOptions;
 import org.apache.doris.flink.sink.schema.SchemaChangeMode;
-import org.apache.doris.flink.table.DorisConfigOptions;
 import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.doris.flink.tools.cdc.converter.TableNameConverter;
@@ -111,34 +108,31 @@ public abstract class DuckdbDatabaseSync {
     }
 
     public boolean build() throws Exception {
-        DorisConnectionOptions options = getDorisConnectionOptions();
-        DorisSystem dorisSystem = new DorisSystem(options);
-
+        LOG.info("build start...");
         List<SourceSchema> schemaList = getSchemaList();
         Preconditions.checkState(
                 !schemaList.isEmpty(),
                 "No tables to be synchronized. Please make sure whether the tables that need to be synchronized exist in the corresponding database or schema.");
 
-        if (!StringUtils.isNullOrWhitespaceOnly(database)
-                && !dorisSystem.databaseExists(database)) {
-            LOG.info("database {} not exist, created", database);
-            dorisSystem.createDatabase(database);
-        }
         List<String> syncTables = new ArrayList<>();
 
         Set<String> targetDbSet = new HashSet<>();
         for (SourceSchema schema : schemaList) {
             List<String> primaryKeys = schema.getPrimaryKeys();
             int size = primaryKeys == null ? 0 : primaryKeys.size();
+            LOG.info("tableName: {}, primary key size: {}", schema.getTableName(), size);
             if (size != 1) {
                 LOG.warn("Unsupported. source db table name: {}, primary key size: {}. primary key size must 1.",
                         schema.getTableName(), size);
                 continue;
             }
 
+            LOG.info("registerMapperBean");
             duckdbMapperManagerComponent.registerMapperBean(schema);
+            LOG.info("createTableIfNotExists");
             BaseMapperDuckdb<?> baseMapperBean = duckdbMapperManagerComponent.getMapperBean(schema.getTableName());
             baseMapperBean.createTableIfNotExists();
+            LOG.info("createTableIfNotExists finished");
 
             syncTables.add(schema.getTableName());
             String targetDb = database;
@@ -147,12 +141,8 @@ public abstract class DuckdbDatabaseSync {
                 targetDb = schema.getDatabaseName();
                 targetDbSet.add(targetDb);
             }
-            if (StringUtils.isNullOrWhitespaceOnly(database)
-                    && !dorisSystem.databaseExists(targetDb)) {
-                LOG.info("database {} not exist, created", targetDb);
-                dorisSystem.createDatabase(targetDb);
-            }
         }
+        LOG.info("schemaList finished, size: {}", schemaList.size());
         if (createTableOnly) {
             System.out.println("Create table finished.");
             return false;
@@ -221,25 +211,6 @@ public abstract class DuckdbDatabaseSync {
         SingleOutputStreamOperator<RecordDto> filterDataSource = recordDtoDataSource.filter(Objects::nonNull);
         filterDataSource.sinkTo(new DuckDBSink());
         return true;
-    }
-
-    private DorisConnectionOptions getDorisConnectionOptions() {
-        String fenodes = sinkConfig.getString(DorisConfigOptions.FENODES);
-        String benodes = sinkConfig.getString(DorisConfigOptions.BENODES);
-        String user = sinkConfig.getString(DorisConfigOptions.USERNAME);
-        String passwd = sinkConfig.getString(DorisConfigOptions.PASSWORD, "");
-        String jdbcUrl = sinkConfig.getString(DorisConfigOptions.JDBC_URL);
-        Preconditions.checkNotNull(fenodes, "fenodes is empty in sink-conf");
-        Preconditions.checkNotNull(user, "username is empty in sink-conf");
-        Preconditions.checkNotNull(jdbcUrl, "jdbcurl is empty in sink-conf");
-        DorisConnectionOptions.DorisConnectionOptionsBuilder builder =
-                new DorisConnectionOptions.DorisConnectionOptionsBuilder()
-                        .withFenodes(fenodes)
-                        .withBenodes(benodes)
-                        .withUsername(user)
-                        .withPassword(passwd)
-                        .withJdbcUrl(jdbcUrl);
-        return builder.build();
     }
 
     /** Filter table that need to be synchronized. */

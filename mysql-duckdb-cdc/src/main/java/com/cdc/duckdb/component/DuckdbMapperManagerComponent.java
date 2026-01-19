@@ -17,6 +17,7 @@ import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 
 import javax.annotation.PostConstruct;
 import java.util.Map;
@@ -50,6 +51,7 @@ public class DuckdbMapperManagerComponent {
     }
 
     public void registerMapperBean(SourceSchema schema) throws Exception {
+        log.info("registerMapperBean enter.");
         String tableName = schema.getTableName();
         Assert.hasText(tableName, "表名不能为空");
 
@@ -62,6 +64,7 @@ public class DuckdbMapperManagerComponent {
         MapperRegistry mapperRegistry = configuration.getMapperRegistry();
         mapperRegistry.addMapper(mapperClass);
 
+        log.info("instance mapper instance.");
         BaseMapperDuckdb<?> baseMapper = (BaseMapperDuckdb<?>) sqlSessionTemplate.getMapper(mapperClass);
 
         // 4. 验证 Mapper 对象有效性
@@ -72,6 +75,7 @@ public class DuckdbMapperManagerComponent {
 
         // 6. 注册 Mapper 到 Spring 容器，由 Spring 托管（后续复用该 Bean，无连接泄露风险）
         String beanName = mapperClass.getSimpleName(); // 用 Mapper 接口类名作为 Bean 名，更规范
+        log.info("registerBean mapper instance.");
         genericApplicationContext.registerBean(beanName, BaseMapperDuckdb.class, () -> baseMapper);
 
         // 7. 从 Spring 容器获取 Mapper Bean，存储到映射表（供后续业务使用）
@@ -79,6 +83,7 @@ public class DuckdbMapperManagerComponent {
         mapperBeanMapping.put(tableName, baseMapperBean);
 
         if (cdcConcurrentThreads != null) {
+            log.info("cdcConcurrentThreads.register.");
             cdcConcurrentThreads.register(tableName, baseMapperBean);
         }
     }
@@ -92,6 +97,9 @@ public class DuckdbMapperManagerComponent {
         String duckdbTbName = mappingDuckdbTbName(recordDto);
         try {
             BaseEntity entity = mappingEntity(recordDto);
+            if (entity == null) {
+                return;
+            }
             cdcConcurrentThreads.write(recordDto.getOperation(), duckdbTbName, entity);
         } catch (InstantiationException | IllegalAccessException | JsonProcessingException e) {
             throw new RuntimeException(e);
@@ -113,17 +121,22 @@ public class DuckdbMapperManagerComponent {
         String op = recordDto.getOperation();
         String jsonText;
         if (op.equals(Envelope.Operation.CREATE.code()) || op.equals(Envelope.Operation.UPDATE.code())) {
-            log.trace("mappingEntity create|update event");
-            jsonText = recordDto.getBeforeJson();
-        } else if (op.equals(Envelope.Operation.DELETE.code()) || op.equals(Envelope.Operation.TRUNCATE.code())) {
-            log.trace("mappingEntity delete|truncate event");
+            log.info("mappingEntity create|update event");
             jsonText = recordDto.getAfterJson();
+        } else if (op.equals(Envelope.Operation.DELETE.code()) || op.equals(Envelope.Operation.TRUNCATE.code())) {
+            log.info("mappingEntity delete|truncate event");
+            jsonText = recordDto.getBeforeJson();
         } else if (op.equals(Envelope.Operation.READ.code())) {
             // 全量同步阶段
-            log.trace("mappingEntity read event.");
-            jsonText = recordDto.getBeforeJson();
+            log.info("mappingEntity read event.");
+            jsonText = recordDto.getAfterJson();
         } else {
             throw new RuntimeException("UNKNOWN operation: " + op);
+        }
+
+        if (!StringUtils.hasText(jsonText)) {
+            log.info("jsonText is empty, op: {}, recordDto: {}", op, recordDto);
+            return null;
         }
 
         Class<? extends BaseEntity> entityClass = tableEntityMapping.get(table);

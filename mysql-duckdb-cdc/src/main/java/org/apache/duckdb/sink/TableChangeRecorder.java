@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @RequiredArgsConstructor
 @Slf4j
-public class RecordChangeEntities {
+public class TableChangeRecorder {
     // 默认容量
     private static final int CAPACITY = 1000;
 
@@ -36,7 +36,7 @@ public class RecordChangeEntities {
             deleteEntitiesMap.put(entity.getPrimaryKey(), entity);
             upsertEntitiesMap.remove(entity.getPrimaryKey());
         } else if (op.equals(Envelope.Operation.READ.code())) {
-            // 全量同步阶段
+            // 全量同步阶段，也就是首次执行，或者叫没有从checkpoint 启动
             log.trace("put read event.");
             upsertEntitiesMap.put(entity.getPrimaryKey(), entity);
             deleteEntitiesMap.remove(entity.getPrimaryKey());
