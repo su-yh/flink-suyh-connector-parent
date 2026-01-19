@@ -3,6 +3,7 @@ package com.cdc.duckdb.component;
 import com.cdc.duckdb.mp.entity.BaseEntity;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.debezium.data.Envelope;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
@@ -43,7 +44,7 @@ public class DuckdbMapperManagerComponent {
         DuckDBWriter.duckdbMapperManagerComponent = this;
 
         if (cdcConcurrentThreads == null) {
-            cdcConcurrentThreads = new CdcConcurrentThreads(mapperBeanMapping::get);
+            cdcConcurrentThreads = new CdcConcurrentThreads();
             cdcConcurrentThreads.init();
         }
     }
@@ -76,6 +77,10 @@ public class DuckdbMapperManagerComponent {
         // 7. 从 Spring 容器获取 Mapper Bean，存储到映射表（供后续业务使用）
         BaseMapperDuckdb<?> baseMapperBean = genericApplicationContext.getBean(beanName, BaseMapperDuckdb.class);
         mapperBeanMapping.put(tableName, baseMapperBean);
+
+        if (cdcConcurrentThreads != null) {
+            cdcConcurrentThreads.register(tableName, baseMapperBean);
+        }
     }
 
     public BaseMapperDuckdb<?> getMapperBean(String tableName) {
@@ -87,7 +92,7 @@ public class DuckdbMapperManagerComponent {
         String duckdbTbName = mappingDuckdbTbName(recordDto);
         try {
             BaseEntity entity = mappingEntity(recordDto);
-            cdcConcurrentThreads.write(duckdbTbName, entity);
+            cdcConcurrentThreads.write(recordDto.getOperation(), duckdbTbName, entity);
         } catch (InstantiationException | IllegalAccessException | JsonProcessingException e) {
             throw new RuntimeException(e);
         }
@@ -105,8 +110,24 @@ public class DuckdbMapperManagerComponent {
 
     private BaseEntity mappingEntity(RecordDto recordDto) throws InstantiationException, IllegalAccessException, JsonProcessingException {
         String table = recordDto.getSource().getTable();
+        String op = recordDto.getOperation();
+        String jsonText;
+        if (op.equals(Envelope.Operation.CREATE.code()) || op.equals(Envelope.Operation.UPDATE.code())) {
+            log.trace("mappingEntity create|update event");
+            jsonText = recordDto.getBeforeJson();
+        } else if (op.equals(Envelope.Operation.DELETE.code()) || op.equals(Envelope.Operation.TRUNCATE.code())) {
+            log.trace("mappingEntity delete|truncate event");
+            jsonText = recordDto.getAfterJson();
+        } else if (op.equals(Envelope.Operation.READ.code())) {
+            // 全量同步阶段
+            log.trace("mappingEntity read event.");
+            jsonText = recordDto.getBeforeJson();
+        } else {
+            throw new RuntimeException("UNKNOWN operation: " + op);
+        }
+
         Class<? extends BaseEntity> entityClass = tableEntityMapping.get(table);
-        return JsonUtils.deserialize(recordDto.getAfterJson(), entityClass);
+        return JsonUtils.deserialize(jsonText, entityClass);
     }
 
 
