@@ -47,19 +47,22 @@ public class TableChangeRecorder {
 
     public void flush() {
         if (!upsertEntitiesMap.isEmpty()) {
+            long start = System.currentTimeMillis();
             Collection<BaseEntity> entities = upsertEntitiesMap.values();
             int size = entities.size();
             baseMapperDuckdb.upsertObjects(entities);
             upsertEntitiesMap.clear();
-            log.info("upsert entities size: {}", size);
+            long last = System.currentTimeMillis();
+            log.debug("duckdb table name: {}, upsert entities size: {}, duration: {}ms", duckdbTableName, size, (last - start));
         }
         if (!deleteEntitiesMap.isEmpty()) {
+            long start = System.currentTimeMillis();
             Set<Object> ids = deleteEntitiesMap.keySet();
             int size = ids.size();
             baseMapperDuckdb.deleteBatchIds(ids);
             deleteEntitiesMap.clear();
-
-            log.info("delete entities size: {}", size);
+            long last = System.currentTimeMillis();
+            log.debug("duckdb table name: {}, delete entities size: {}, duration: {}ms", duckdbTableName, size, (last - start));
         }
     }
 

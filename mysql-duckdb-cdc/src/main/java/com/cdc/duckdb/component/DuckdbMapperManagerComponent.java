@@ -124,14 +124,14 @@ public class DuckdbMapperManagerComponent {
         String op = recordDto.getOperation();
         String jsonText;
         if (op.equals(Envelope.Operation.CREATE.code()) || op.equals(Envelope.Operation.UPDATE.code())) {
-            log.info("mappingEntity create|update event");
+            log.trace("mappingEntity create|update event");
             jsonText = recordDto.getAfterJson();
         } else if (op.equals(Envelope.Operation.DELETE.code()) || op.equals(Envelope.Operation.TRUNCATE.code())) {
-            log.info("mappingEntity delete|truncate event");
+            log.trace("mappingEntity delete|truncate event");
             jsonText = recordDto.getBeforeJson();
         } else if (op.equals(Envelope.Operation.READ.code())) {
             // 全量同步阶段
-            log.info("mappingEntity read event.");
+            log.trace("mappingEntity read event.");
             jsonText = recordDto.getAfterJson();
         } else {
             throw new RuntimeException("UNKNOWN operation: " + op);

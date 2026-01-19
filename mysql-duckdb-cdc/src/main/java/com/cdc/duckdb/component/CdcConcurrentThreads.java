@@ -109,10 +109,10 @@ public class CdcConcurrentThreads {
             TableRecordBuffer tableRecordBuffer = writeQueue.poll();
             if (tableRecordBuffer != null) {
                 if (!tableRecordBuffer.isEmpty()) {
-                    log.trace("timer flush buffer");
+                    log.debug("timer flush buffer");
                     doFlush(tableRecordBuffer);
                 } else {
-                    log.trace("timer restoreBuffer");
+                    log.debug("timer restoreBuffer");
                     restoreBuffer(tableRecordBuffer);
                 }
             }
@@ -165,11 +165,11 @@ public class CdcConcurrentThreads {
                 try {
                     TableRecordBuffer tableRecordBuffer = readQueue.poll(1, TimeUnit.SECONDS);
                     if (tableRecordBuffer != null) {
-                        log.trace("从读队列中取到buffer");
+                        log.debug("从读队列中取到buffer");
                         tableRecordBuffer.flush();
 
                         restoreBuffer(tableRecordBuffer);
-                        log.trace("buffer 处理完，还回写队列");
+                        log.debug("buffer 处理完，还回写队列");
                     }
                 } catch (InterruptedException e) {
                     log.error("{} error.", DuckdbWriterThread.class.getSimpleName(), e);
