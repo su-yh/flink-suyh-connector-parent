@@ -150,14 +150,18 @@ public abstract class DuckdbDatabaseSync {
         config.setString(TABLE_NAME_OPTIONS, getSyncTableList(syncTables));
         DataStreamSource<String> streamSource = buildCdcSource(env);
         SingleOutputStreamOperator<RecordDto> recordDtoDataSource = streamSource.map(new MapFunction<String, RecordDto>() {
+            private static final long serialVersionUID = -5095821159233558278L;
+
             @Override
             public RecordDto map(String value) throws Exception {
                 if (StringUtils.isNullOrWhitespaceOnly(value)) {
+                    LOG.warn("value is empty.");
                     return null;
                 }
 
                 JsonNode recordRoot = JsonUtils.deserialize(value, JsonNode.class);
                 if (recordRoot == null) {
+                    LOG.warn("json deserialize failed, value: {}", value);
                     return null;
                 }
 
@@ -165,9 +169,16 @@ public abstract class DuckdbDatabaseSync {
 
                 {
                     JsonNode opNode = recordRoot.get(Envelope.FieldName.OPERATION);
-                    if (opNode != null && !(opNode instanceof NullNode)) {
-                        dto.setOperation(opNode.asText());
+                    if (opNode == null) {
+                        LOG.warn("opNode is null");
+                        return null;
                     }
+                    if (opNode instanceof NullNode) {
+                        LOG.warn("opNode is NullNode");
+                        return null;
+                    }
+
+                    dto.setOperation(opNode.asText());
                 }
                 {
                     JsonNode tsNode = recordRoot.get(Envelope.FieldName.TIMESTAMP);
