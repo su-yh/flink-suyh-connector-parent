@@ -34,9 +34,9 @@ public class DuckdbMapperManagerComponent {
     private final SqlSessionFactory sqlSessionFactory;
     private final SqlSessionTemplate sqlSessionTemplate;
     private final GenericApplicationContext genericApplicationContext;
-    // 每一张表对应的Entity
+    // 每一张表(duckdbTableName)对应的Entity
     private final Map<String, Class<? extends BaseEntity>> tableEntityMapping = new ConcurrentHashMap<>();
-    // 每一张表对应的spring 容器中的 mapper bean 对象
+    // 每一张表(duckdbTableName)对应的spring 容器中的 mapper bean 对象
     private final Map<String, BaseMapperDuckdb<?>> mapperBeanMapping = new ConcurrentHashMap<>();
     private CdcConcurrentThreads cdcConcurrentThreads;
 
@@ -54,10 +54,11 @@ public class DuckdbMapperManagerComponent {
         log.info("registerMapperBean enter.");
         String tableName = schema.getTableName();
         Assert.hasText(tableName, "表名不能为空");
+        String duckdbTableName = mappingDuckdbTbName(tableName);
 
         // 1. 动态生成 Entity 和 Mapper 类（保持不变）
-        Class<? extends BaseEntity> entityClass = JavassistDynamicClassGenerator.generateDynamicEntity(schema, "com.cdc.duckdb.mp.entity", schema.getTableName() + "_entity");
-        Class<?> mapperClass = JavassistDynamicClassGenerator.generateDynamicMapper("com.cdc.duckdb.mp.mapper", schema.getTableName() + "_mapper", entityClass);
+        Class<? extends BaseEntity> entityClass = JavassistDynamicClassGenerator.generateDynamicEntity(schema, "com.cdc.duckdb.mp.entity", duckdbTableName);
+        Class<?> mapperClass = JavassistDynamicClassGenerator.generateDynamicMapper("com.cdc.duckdb.mp.mapper", duckdbTableName, entityClass);
 
         // 2. 注册 Mapper 到 MyBatis 注册表（必须，让 MyBatis 识别 Mapper 接口和 SQL 定义）
         Configuration configuration = sqlSessionFactory.getConfiguration();
@@ -68,10 +69,10 @@ public class DuckdbMapperManagerComponent {
         BaseMapperDuckdb<?> baseMapper = (BaseMapperDuckdb<?>) sqlSessionTemplate.getMapper(mapperClass);
 
         // 4. 验证 Mapper 对象有效性
-        Assert.notNull(baseMapper, "动态生成 Mapper 代理对象失败，表名：" + tableName);
+        Assert.notNull(baseMapper, "动态生成 Mapper 代理对象失败，源表名：" + tableName + ", duckdbTableName: " + duckdbTableName);
 
         // 5. 存储 Entity 类映射（后续实例化使用，保持不变）
-        tableEntityMapping.put(tableName, entityClass);
+        tableEntityMapping.put(duckdbTableName, entityClass);
 
         // 6. 注册 Mapper 到 Spring 容器，由 Spring 托管（后续复用该 Bean，无连接泄露风险）
         String beanName = mapperClass.getSimpleName(); // 用 Mapper 接口类名作为 Bean 名，更规范
@@ -80,21 +81,22 @@ public class DuckdbMapperManagerComponent {
 
         // 7. 从 Spring 容器获取 Mapper Bean，存储到映射表（供后续业务使用）
         BaseMapperDuckdb<?> baseMapperBean = genericApplicationContext.getBean(beanName, BaseMapperDuckdb.class);
-        mapperBeanMapping.put(tableName, baseMapperBean);
+        mapperBeanMapping.put(duckdbTableName, baseMapperBean);
 
         if (cdcConcurrentThreads != null) {
             log.info("cdcConcurrentThreads.register.");
-            cdcConcurrentThreads.register(tableName, baseMapperBean);
+            cdcConcurrentThreads.register(duckdbTableName, baseMapperBean);
         }
     }
 
     public BaseMapperDuckdb<?> getMapperBean(String tableName) {
-        return mapperBeanMapping.get(tableName);
+        String duckdbTableName = mappingDuckdbTbName(tableName);
+        return mapperBeanMapping.get(duckdbTableName);
     }
 
     // 读和写都要允许阻塞，直到成功为止，不然flink 的checkpoint 将会出现问题。
     public void write(RecordDto recordDto) throws InterruptedException {
-        String duckdbTbName = mappingDuckdbTbName(recordDto);
+        String duckdbTbName = mappingDuckdbTbName(recordDto.getSource().getTable());
         try {
             BaseEntity entity = mappingEntity(recordDto);
             if (entity == null) {
@@ -110,14 +112,15 @@ public class DuckdbMapperManagerComponent {
         cdcConcurrentThreads.syncFlush();
     }
 
-    private String mappingDuckdbTbName(RecordDto recordDto) {
+    private String mappingDuckdbTbName(String mysqlTableName) {
         // TODO: suyh - 待处理
         //   测试，暂时处理成mysql 的表名
-        return recordDto.getSource().getTable();
+        return "prefix_" + mysqlTableName;
     }
 
     private BaseEntity mappingEntity(RecordDto recordDto) throws InstantiationException, IllegalAccessException, JsonProcessingException {
-        String table = recordDto.getSource().getTable();
+        String tableName = recordDto.getSource().getTable();
+        String duckdbTableName = mappingDuckdbTbName(tableName);
         String op = recordDto.getOperation();
         String jsonText;
         if (op.equals(Envelope.Operation.CREATE.code()) || op.equals(Envelope.Operation.UPDATE.code())) {
@@ -139,7 +142,11 @@ public class DuckdbMapperManagerComponent {
             return null;
         }
 
-        Class<? extends BaseEntity> entityClass = tableEntityMapping.get(table);
+        Class<? extends BaseEntity> entityClass = tableEntityMapping.get(duckdbTableName);
+        if (entityClass == null) {
+            log.error("COUNT FOUND {}, source table name: {}, duckdb table name: {}", BaseEntity.class.getSimpleName(), tableName, duckdbTableName);
+            return null;
+        }
         return JsonUtils.deserialize(jsonText, entityClass);
     }
 

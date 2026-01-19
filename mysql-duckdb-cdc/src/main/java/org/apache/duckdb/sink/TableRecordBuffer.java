@@ -23,9 +23,9 @@ public class TableRecordBuffer {
     // key: duckdb 表名
     private final Map<String, TableChangeRecorder> tableEntitiesMapping = new HashMap<>();
 
-    public synchronized void register(String tbName, BaseMapperDuckdb<?> baseMapperDuckdb) {
-        TableChangeRecorder tableChangeRecorder = new TableChangeRecorder(tbName, baseMapperDuckdb);
-        tableEntitiesMapping.put(tbName, tableChangeRecorder);
+    public synchronized void register(String duckdbTableName, BaseMapperDuckdb<?> baseMapperDuckdb) {
+        TableChangeRecorder tableChangeRecorder = new TableChangeRecorder(duckdbTableName, baseMapperDuckdb);
+        tableEntitiesMapping.put(duckdbTableName, tableChangeRecorder);
     }
 
     // 返回对应表的队列是否满

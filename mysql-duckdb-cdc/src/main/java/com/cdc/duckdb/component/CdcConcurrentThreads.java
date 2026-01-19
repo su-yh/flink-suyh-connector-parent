@@ -23,6 +23,7 @@ public class CdcConcurrentThreads {
     private ScheduledExecutorService scheduledExecutor;
 
     public synchronized void init() {
+        log.info("init");
         if (writeQueue == null) {
             writeQueue = new ArrayBlockingQueue<>(1);   // 有且只能一个元素
             writeQueue.add(TableRecordBuffer.INSTANCE);
@@ -38,6 +39,7 @@ public class CdcConcurrentThreads {
     }
 
     public synchronized void stop() {
+        log.info("stop");
         if (writeQueue != null) {
             // TODO: suyh - 待实现
             // ... 其他销毁工作
@@ -107,9 +109,10 @@ public class CdcConcurrentThreads {
             TableRecordBuffer tableRecordBuffer = writeQueue.poll();
             if (tableRecordBuffer != null) {
                 if (!tableRecordBuffer.isEmpty()) {
+                    log.trace("timer flush buffer");
                     doFlush(tableRecordBuffer);
                 } else {
-                    log.trace("将空buffer 还回写队列");
+                    log.trace("timer restoreBuffer");
                     restoreBuffer(tableRecordBuffer);
                 }
             }
@@ -136,16 +139,16 @@ public class CdcConcurrentThreads {
         throw new RuntimeException("recycleBuffer failed.");
     }
 
-    public void register(String tableName, BaseMapperDuckdb<?> baseMapperBean) {
+    public void register(String duckdbTableName, BaseMapperDuckdb<?> baseMapperBean) {
         int count = 1000;
         for (int i = 0; i < count; i++) {
             try {
                 TableRecordBuffer tableRecordBuffer = writeQueue.take();
-                tableRecordBuffer.register(tableName, baseMapperBean);
+                tableRecordBuffer.register(duckdbTableName, baseMapperBean);
                 restoreBuffer(tableRecordBuffer);
                 return;
             } catch (InterruptedException e) {
-                log.warn("register table({}) failed, retry {}/{}", tableName, (i + 1), count, e);
+                log.warn("register table({}) failed, retry {}/{}", duckdbTableName, (i + 1), count, e);
             }
         }
     }
@@ -157,6 +160,7 @@ public class CdcConcurrentThreads {
 
         @Override
         public void run() {
+            log.info("DuckdbWriterThread start");
             while (true) {
                 try {
                     TableRecordBuffer tableRecordBuffer = readQueue.poll(1, TimeUnit.SECONDS);

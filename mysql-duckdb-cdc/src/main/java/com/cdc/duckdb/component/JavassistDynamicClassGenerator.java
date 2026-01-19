@@ -35,11 +35,12 @@ public class JavassistDynamicClassGenerator {
      * 基于 MysqlSchema 动态生成 MyBatis-Plus Entity 类（修改后：实现 BaseEntity 并实现 getPrimaryKey()）
      * @param sourceSchema Doris CDC 提供的 MySQL 表结构元数据
      * @param entityPackage 生成Entity的包名（如：com.ebusiness.entity）
-     * @param entityClassName 生成Entity的类名（如：PersonEntity）
+     * @param duckdbTableName 生成Entity的类名（如：PersonEntity）
      * @return 动态生成的Entity Class对象
      * @throws Exception 生成过程中的异常（Javassist操作、反射相关）
      */
-    public static Class<? extends BaseEntity> generateDynamicEntity(SourceSchema sourceSchema, String entityPackage, String entityClassName) throws Exception {
+    public static Class<? extends BaseEntity> generateDynamicEntity(
+            SourceSchema sourceSchema, String entityPackage, String duckdbTableName) throws Exception {
         // 1. 初始化 Javassist ClassPool（类池，用于创建/获取CtClass）
         ClassPool classPool = ClassPool.getDefault();
         classPool.importPackage(TableName.class.getName());
@@ -47,7 +48,7 @@ public class JavassistDynamicClassGenerator {
         classPool.importPackage(BaseEntity.class.getName());
 
         // 2. 构建完整的类名（包名+类名）
-        String fullEntityClassName = entityPackage + "." + entityClassName;
+        String fullEntityClassName = entityPackage + "." + duckdbTableName + "_entity";
         CtClass ctEntityClass = classPool.makeClass(fullEntityClassName);
 
         // 3. 绑定 BaseEntity 接口（确保动态类实现该接口，为返回值类型约束提供支撑）
@@ -55,8 +56,7 @@ public class JavassistDynamicClassGenerator {
         ctEntityClass.addInterface(baseEntityCt);
 
         // 4. 为Entity添加 MyBatis-Plus @TableName 注解（关联数据库表名）
-        String tableName = sourceSchema.getTableName();
-        addTableNameAnnotation(ctEntityClass, tableName);
+        addTableNameAnnotation(ctEntityClass, duckdbTableName);
 
         // 5. 遍历字段信息，动态生成Entity的成员变量及注解
         Map<String, DuckdbFieldSchema> fields = sourceSchema.getDuckdbFields();
@@ -215,14 +215,14 @@ public class JavassistDynamicClassGenerator {
      * 原有动态 Mapper 生成方法（优化：支持传入动态生成的Entity Class）
      */
     @NonNull
-    public static Class<?> generateDynamicMapper(String mapperPackage, String mapperClassName, Class<?> entityClass) throws CannotCompileException, NotFoundException {
+    public static Class<?> generateDynamicMapper(String mapperPackage, String duckdbTableName, Class<?> entityClass) throws CannotCompileException, NotFoundException {
         ClassPool pool = ClassPool.getDefault();
 
         // 1. 获取 BaseMapperDuckdb 的 CtClass
         CtClass baseMapperCt = pool.get(BaseMapperDuckdb.class.getName());
 
         // 2. 构建 Mapper 接口的完整类名
-        String fullMapperClassName = mapperPackage + "." + mapperClassName;
+        String fullMapperClassName = mapperPackage + "." + duckdbTableName + "_mapper";
         CtClass mapperCt = pool.makeInterface(fullMapperClassName, baseMapperCt);
 
         // 3. 构建泛型签名（绑定动态生成的Entity）

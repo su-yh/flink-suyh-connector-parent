@@ -21,7 +21,7 @@ public class TableChangeRecorder {
     // 默认容量
     private static final int CAPACITY = 1000;
 
-    private final String tableName; // duckdb 对应的表名
+    private final String duckdbTableName; // duckdb 对应的表名
     private final BaseMapperDuckdb<?> baseMapperDuckdb;
     private final Map<Object, BaseEntity> upsertEntitiesMap = new ConcurrentHashMap<>();
     private final Map<Object, BaseEntity> deleteEntitiesMap = new ConcurrentHashMap<>();
@@ -48,13 +48,18 @@ public class TableChangeRecorder {
     public void flush() {
         if (!upsertEntitiesMap.isEmpty()) {
             Collection<BaseEntity> entities = upsertEntitiesMap.values();
+            int size = entities.size();
             baseMapperDuckdb.upsertObjects(entities);
             upsertEntitiesMap.clear();
+            log.info("upsert entities size: {}", size);
         }
         if (!deleteEntitiesMap.isEmpty()) {
             Set<Object> ids = deleteEntitiesMap.keySet();
+            int size = ids.size();
             baseMapperDuckdb.deleteBatchIds(ids);
             deleteEntitiesMap.clear();
+
+            log.info("delete entities size: {}", size);
         }
     }
 
