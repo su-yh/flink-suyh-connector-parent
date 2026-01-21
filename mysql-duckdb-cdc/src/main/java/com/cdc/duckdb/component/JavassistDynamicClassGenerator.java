@@ -1,9 +1,11 @@
 package com.cdc.duckdb.component;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.cdc.duckdb.config.datasource.DataSourceNames;
 import com.cdc.duckdb.mp.ann.TbColumn;
 import com.cdc.duckdb.mp.entity.BaseEntity;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
@@ -25,6 +27,7 @@ import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.ibatis.javassist.bytecode.SignatureAttribute;
 import org.springframework.lang.NonNull;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -240,7 +243,30 @@ public class JavassistDynamicClassGenerator {
         // 4. 设置泛型签名并转换为 Class
         mapperCt.setGenericSignature(ac.encode());
 
+        addDynamicDsAnnotation(mapperCt, DataSourceNames.STATISTICAL_ANALYSIS_DUCK);
+
+        try {
+            mapperCt.writeFile("./debug");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
         return mapperCt.toClass();
+    }
+
+    /**
+     * 为动态类添加 @DS("xxxxx") 注解（指定数据库表名）
+     */
+    private static void addDynamicDsAnnotation(CtClass ctClass, String dsName) {
+        ConstPool constPool = ctClass.getClassFile().getConstPool();
+        AnnotationsAttribute annotationAttr = new AnnotationsAttribute(constPool, AnnotationsAttribute.visibleTag);
+        Annotation dsAnnotation = new Annotation(DS.class.getName(), constPool);
+        StringMemberValue dsValue = new StringMemberValue(constPool);
+        dsValue.setValue(dsName);
+        dsAnnotation.addMemberValue("value", dsValue);
+        annotationAttr.addAnnotation(dsAnnotation);
+        // 将注解添加到类上
+        ctClass.getClassFile().addAttribute(annotationAttr);
     }
 }
 

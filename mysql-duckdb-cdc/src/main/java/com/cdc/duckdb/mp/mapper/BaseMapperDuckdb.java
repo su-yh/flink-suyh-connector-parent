@@ -17,6 +17,7 @@ import java.util.List;
 public interface BaseMapperDuckdb<T> extends BaseMapper<T> {
     String ENTITIES = "entities";
 
+    void truncateTable();
     void createTableIfNotExists();
     void upsertEntities(@Param(ENTITIES) Collection<T> entities);
     void insertEntities(@Param(ENTITIES) Collection<T> entities);

@@ -17,6 +17,7 @@ import java.util.List;
  */
 @Slf4j
 public class CreateTableIfNotExists extends AbstractMethod {
+    private static final long serialVersionUID = -3323463537010646884L;
     // SqlMethod
     private static final String METHOD = "createTableIfNotExists";
     private static final String DESC = "当表不存在时创建表";
