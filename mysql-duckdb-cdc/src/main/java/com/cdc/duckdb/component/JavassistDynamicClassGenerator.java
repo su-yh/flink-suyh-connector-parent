@@ -149,7 +149,7 @@ public class JavassistDynamicClassGenerator {
         ctEntityClass.addField(ctField);
 
         // 5. 为成员变量生成 getter/setter 方法（若不使用Lombok，可手动生成；使用Lombok可省略，这里做兼容）
-        generateGetterSetter(ctEntityClass, ctField, fieldName, fieldType);
+        generateGetterSetter(ctEntityClass, fieldName, fieldType);
     }
 
     // @TableId( type = IdType.ASSIGN_ID, value = "id" )
@@ -198,7 +198,7 @@ public class JavassistDynamicClassGenerator {
     /**
      * 手动生成 getter/setter 方法（兼容不使用Lombok的场景）
      */
-    private static void generateGetterSetter(CtClass ctClass, CtField ctField, String fieldName, CtClass fieldType) throws Exception {
+    private static void generateGetterSetter(CtClass ctClass, String fieldName, CtClass fieldType) throws Exception {
         // 生成 getter 方法（如：public Long getId() { return id; }）
         String getterName = "get" + Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
         CtMethod getterMethod = new CtMethod(fieldType, getterName, new CtClass[]{}, ctClass);
