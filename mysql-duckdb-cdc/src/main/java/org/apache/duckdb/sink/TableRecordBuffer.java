@@ -29,10 +29,10 @@ public class TableRecordBuffer {
     }
 
     // 返回对应表的队列是否满
-    public synchronized boolean put(String op, String tbName, BaseEntity entity) {
-        TableChangeRecorder tableChangeRecorder = tableEntitiesMapping.get(tbName);
+    public synchronized boolean put(String op, String duckdbTbName, BaseEntity entity) {
+        TableChangeRecorder tableChangeRecorder = tableEntitiesMapping.get(duckdbTbName);
         if (tableChangeRecorder == null) {
-            log.warn("CANNOT FOUND table: {}", tbName);
+            log.warn("CANNOT FOUND duckdb table: {}", duckdbTbName);
             return false;
         }
 
@@ -52,5 +52,17 @@ public class TableRecordBuffer {
 
     public synchronized void flush() {
         tableEntitiesMapping.forEach((tb, record) -> record.flush());
+    }
+
+    public synchronized void ddl(String duckdbTbName, RecordDto recordDto) {
+        flush();
+
+        TableChangeRecorder tableChangeRecorder = tableEntitiesMapping.get(duckdbTbName);
+        if (tableChangeRecorder == null) {
+            log.error("CANNOT FOUND duckdb table: {}", duckdbTbName);
+            return;
+        }
+
+        tableChangeRecorder.ddl(recordDto);
     }
 }

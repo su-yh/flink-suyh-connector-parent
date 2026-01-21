@@ -94,6 +94,11 @@ public class DuckdbMapperManagerComponent {
         return mapperBeanMapping.get(duckdbTableName);
     }
 
+    public void ddl(RecordDto recordDto) {
+        String duckdbTbName = mappingDuckdbTbName(recordDto.getSource().getTable());
+        cdcConcurrentThreads.ddl(duckdbTbName, recordDto);
+    }
+
     // 读和写都要允许阻塞，直到成功为止，不然flink 的checkpoint 将会出现问题。
     public void write(RecordDto recordDto) throws InterruptedException {
         String duckdbTbName = mappingDuckdbTbName(recordDto.getSource().getTable());

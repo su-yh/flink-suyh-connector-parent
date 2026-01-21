@@ -26,12 +26,13 @@ public class TableChangeRecorder {
     private final Map<Object, BaseEntity> upsertEntitiesMap = new ConcurrentHashMap<>();
     private final Map<Object, BaseEntity> deleteEntitiesMap = new ConcurrentHashMap<>();
 
+    // 返回对应表的队列是否满
     public boolean put(String op, BaseEntity entity) {
         if (op.equals(Envelope.Operation.CREATE.code()) || op.equals(Envelope.Operation.UPDATE.code())) {
             log.trace("put create|update event");
             upsertEntitiesMap.put(entity.getPrimaryKey(), entity);
             deleteEntitiesMap.remove(entity.getPrimaryKey());
-        } else if (op.equals(Envelope.Operation.DELETE.code()) || op.equals(Envelope.Operation.TRUNCATE.code())) {
+        } else if (op.equals(Envelope.Operation.DELETE.code())) {
             log.trace("put delete|truncate event");
             deleteEntitiesMap.put(entity.getPrimaryKey(), entity);
             upsertEntitiesMap.remove(entity.getPrimaryKey());
@@ -40,6 +41,9 @@ public class TableChangeRecorder {
             log.trace("put read event.");
             upsertEntitiesMap.put(entity.getPrimaryKey(), entity);
             deleteEntitiesMap.remove(entity.getPrimaryKey());
+        } else {
+            log.warn("Unsupported op: " + op);
+            return false;
         }
 
         return upsertEntitiesMap.size() >= CAPACITY || deleteEntitiesMap.size() >= CAPACITY;
@@ -68,5 +72,11 @@ public class TableChangeRecorder {
 
     public boolean isEmpty() {
         return upsertEntitiesMap.isEmpty() && deleteEntitiesMap.isEmpty();
+    }
+
+    public void ddl(RecordDto recordDto) {
+        // TODO: suyh - 如何解析DDL
+        log.info("truncate table {}", duckdbTableName);
+        baseMapperDuckdb.truncateTable();
     }
 }

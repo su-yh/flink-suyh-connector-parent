@@ -5,6 +5,7 @@ import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -33,7 +34,14 @@ public class DuckDBWriter implements
         LOG.debug("接收到数据 (准备写入缓存): {}", recordDto);
         LOG.debug("接收到数据 (准备写入缓存)，suyh - database: {}, table: {}",
                 recordDto.getSource().getDb(), recordDto.getSource().getTable());
-        duckdbMapperManagerComponent.write(recordDto);
+        String op = recordDto.getOperation();
+        if (!StringUtils.hasText(op)) {
+            // 参考：org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerializer.serialize 的判断
+            // 只要op 为null 就是ddl 操作
+            duckdbMapperManagerComponent.ddl(recordDto);
+        } else {
+            duckdbMapperManagerComponent.write(recordDto);
+        }
     }
 
     @Override

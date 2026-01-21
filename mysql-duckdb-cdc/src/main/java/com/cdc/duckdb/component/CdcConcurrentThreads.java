@@ -4,6 +4,7 @@ import com.cdc.duckdb.mp.entity.BaseEntity;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.duckdb.sink.RecordDto;
 import org.apache.duckdb.sink.TableRecordBuffer;
 
 import java.util.concurrent.ArrayBlockingQueue;
@@ -88,6 +89,12 @@ public class CdcConcurrentThreads {
     public void syncFlush() {
         TableRecordBuffer tableRecordBuffer = takeBuffer();
         tableRecordBuffer.flush();
+        restoreBuffer(tableRecordBuffer);
+    }
+
+    public void ddl(String duckdbTbName, RecordDto recordDto) {
+        TableRecordBuffer tableRecordBuffer = takeBuffer();
+        tableRecordBuffer.ddl(duckdbTbName, recordDto);
         restoreBuffer(tableRecordBuffer);
     }
 

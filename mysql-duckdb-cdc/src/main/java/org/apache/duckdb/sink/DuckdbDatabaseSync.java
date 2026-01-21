@@ -169,16 +169,16 @@ public abstract class DuckdbDatabaseSync {
 
                 {
                     JsonNode opNode = recordRoot.get(Envelope.FieldName.OPERATION);
+                    String op = null;
                     if (opNode == null) {
-                        LOG.warn("opNode is null");
-                        return null;
-                    }
-                    if (opNode instanceof NullNode) {
-                        LOG.warn("opNode is NullNode");
-                        return null;
+                        LOG.info("opNode is null, json: {}", value);
+                    } else if (opNode instanceof NullNode) {
+                        LOG.info("opNode is NullNode, json: {}", value);
+                    } else {
+                        op = opNode.asText();
                     }
 
-                    dto.setOperation(opNode.asText());
+                    dto.setOperation(op);
                 }
                 {
                     JsonNode tsNode = recordRoot.get(Envelope.FieldName.TIMESTAMP);
