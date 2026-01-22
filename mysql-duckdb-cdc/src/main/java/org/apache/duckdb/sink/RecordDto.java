@@ -37,4 +37,7 @@ public class RecordDto implements Serializable {
 
     @JsonProperty("transaction")
     private String transaction;
+
+    @JsonProperty("historyRecord")
+    private String historyRecordJson;
 }

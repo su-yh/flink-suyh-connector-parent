@@ -2,9 +2,12 @@ package org.apache.duckdb.sink;
 
 import com.cdc.duckdb.mp.entity.BaseEntity;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import io.debezium.data.Envelope;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.SQLParserSchemaChange;
+import org.springframework.util.StringUtils;
 
 import java.util.Collection;
 import java.util.Map;
@@ -15,7 +18,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author suyh
  * @since 2026-01-17
  */
-@RequiredArgsConstructor
 @Slf4j
 public class TableChangeRecorder {
     // 默认容量
@@ -23,8 +25,15 @@ public class TableChangeRecorder {
 
     private final String duckdbTableName; // duckdb 对应的表名
     private final BaseMapperDuckdb<?> baseMapperDuckdb;
+    private final SQLParserSchemaChange schemaChange;
     private final Map<Object, BaseEntity> upsertEntitiesMap = new ConcurrentHashMap<>();
     private final Map<Object, BaseEntity> deleteEntitiesMap = new ConcurrentHashMap<>();
+
+    public TableChangeRecorder(String duckdbTableName, BaseMapperDuckdb<?> baseMapperDuckdb) {
+        this.duckdbTableName = duckdbTableName;
+        this.baseMapperDuckdb = baseMapperDuckdb;
+        this.schemaChange = new SQLParserSchemaChange(duckdbTableName);
+    }
 
     // 返回对应表的队列是否满
     public boolean put(String op, BaseEntity entity) {
@@ -74,9 +83,23 @@ public class TableChangeRecorder {
         return upsertEntitiesMap.isEmpty() && deleteEntitiesMap.isEmpty();
     }
 
-    public void ddl(RecordDto recordDto) {
-        // TODO: suyh - 如何解析DDL
-        log.info("truncate table {}", duckdbTableName);
-        baseMapperDuckdb.truncateTable();
+    public void ddl(RecordDto recordDto) throws JsonProcessingException {
+        // 参考：org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerializer.initSchemaChangeInstance
+        // 使用 SQLParserSchemaChange
+        // DDL 入口：org.apache.doris.flink.sink.writer.serializer.jsondebezium.SQLParserSchemaChange.schemaChange
+
+        String historyRecordJson = recordDto.getHistoryRecordJson();
+        if (!StringUtils.hasText(historyRecordJson)) {
+            log.warn("historyRecordJson is empty");
+            return;
+        }
+
+        JsonNode historyRecord = JsonUtils.deserializeToJsonNode(historyRecordJson);
+
+        schemaChange.schemaChange(historyRecord);
+
+        // // TODO: suyh - 如何解析DDL
+        // log.info("truncate table {}", duckdbTableName);
+        // baseMapperDuckdb.truncateTable();
     }
 }

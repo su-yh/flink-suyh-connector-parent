@@ -17,29 +17,18 @@
 
 package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.StringUtils;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.doris.flink.cfg.DorisOptions;
-import org.apache.doris.flink.exception.IllegalArgumentException;
-import org.apache.doris.flink.sink.schema.SchemaChangeManager;
 import org.apache.doris.flink.sink.writer.EventType;
-import org.apache.doris.flink.tools.cdc.DorisTableConfig;
-import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
-import org.apache.doris.flink.tools.cdc.converter.TableNameConverter;
+import org.apache.duckdb.sink.JsonUtils;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -61,31 +50,31 @@ public abstract class JsonDebeziumSchemaChange extends CdcSchemaChange {
     protected Pattern addDropDDLPattern;
 
     // table name of the cdc upstream, format is db.tbl
-    protected String sourceTableName;
-    protected DorisOptions dorisOptions;
-    protected ObjectMapper objectMapper;
+    // protected String sourceTableName;
+    // protected DorisOptions dorisOptions;
+    // protected ObjectMapper objectMapper;
     // <cdc db.schema.table, doris db.table>
-    protected Map<String, String> tableMapping;
-    protected SchemaChangeManager schemaChangeManager;
-    protected JsonDebeziumChangeContext changeContext;
-    protected SourceConnector sourceConnector;
-    protected String targetDatabase;
-    protected String targetTablePrefix;
-    protected String targetTableSuffix;
-    protected DorisTableConfig dorisTableConfig;
-    protected TableNameConverter tableNameConverter;
+    // protected Map<String, String> tableMapping;
+    // protected SchemaChangeManager schemaChangeManager;
+    // protected JsonDebeziumChangeContext changeContext;
+    // protected SourceConnector sourceConnector;
+    // protected String targetDatabase;
+    // protected String targetTablePrefix;
+    // protected String targetTableSuffix;
+    // protected DorisTableConfig dorisTableConfig;
+    // protected TableNameConverter tableNameConverter;
 
     public abstract boolean schemaChange(JsonNode recordRoot);
 
     public abstract void init(JsonNode recordRoot, String dorisTableName);
 
-    /** When cdc synchronizes multiple tables, it will capture multiple table schema changes. */
-    protected boolean checkTable(JsonNode recordRoot) {
-        String db = extractDatabase(recordRoot);
-        String tbl = extractTable(recordRoot);
-        String dbTbl = db + "." + tbl;
-        return sourceTableName.equals(dbTbl);
-    }
+    // /** When cdc synchronizes multiple tables, it will capture multiple table schema changes. */
+    // protected boolean checkTable(JsonNode recordRoot) {
+    //     String db = extractDatabase(recordRoot);
+    //     String tbl = extractTable(recordRoot);
+    //     String dbTbl = db + "." + tbl;
+    //     return sourceTableName.equals(dbTbl);
+    // }
 
     @Override
     protected String extractDatabase(JsonNode record) {
@@ -108,24 +97,24 @@ public abstract class JsonDebeziumSchemaChange extends CdcSchemaChange {
                 : null;
     }
 
-    /**
-     * Parse doris database and table as a tuple.
-     *
-     * @param record from flink cdc.
-     * @return Tuple(database, table)
-     */
-    protected Tuple2<String, String> getDorisTableTuple(JsonNode record) {
-        String identifier =
-                JsonDebeziumChangeUtils.getDorisTableIdentifier(record, dorisOptions, tableMapping);
-        if (StringUtils.isNullOrWhitespaceOnly(identifier)) {
-            return null;
-        }
-        String[] tableInfo = identifier.split("\\.");
-        if (tableInfo.length != 2) {
-            return null;
-        }
-        return Tuple2.of(tableInfo[0], tableInfo[1]);
-    }
+    // /**
+    //  * Parse doris database and table as a tuple.
+    //  *
+    //  * @param record from flink cdc.
+    //  * @return Tuple(database, table)
+    //  */
+    // protected Tuple2<String, String> getDorisTableTuple(JsonNode record) {
+    //     String identifier =
+    //             JsonDebeziumChangeUtils.getDorisTableIdentifier(record, dorisOptions, tableMapping);
+    //     if (StringUtils.isNullOrWhitespaceOnly(identifier)) {
+    //         return null;
+    //     }
+    //     String[] tableInfo = identifier.split("\\.");
+    //     if (tableInfo.length != 2) {
+    //         return null;
+    //     }
+    //     return Tuple2.of(tableInfo[0], tableInfo[1]);
+    // }
 
     @VisibleForTesting
     @Override
@@ -138,7 +127,8 @@ public abstract class JsonDebeziumSchemaChange extends CdcSchemaChange {
 
     protected JsonNode extractHistoryRecord(JsonNode record) throws JsonProcessingException {
         if (record != null && record.has("historyRecord")) {
-            return objectMapper.readTree(record.get("historyRecord").asText());
+            return JsonUtils.deserializeToJsonNode(record.get("historyRecord").asText());
+            // return objectMapper.readTree(record.get("historyRecord").asText());
         }
         // The ddl passed by some scenes will not be included in the historyRecord,
         // such as DebeziumSourceFunction
@@ -146,8 +136,8 @@ public abstract class JsonDebeziumSchemaChange extends CdcSchemaChange {
     }
 
     /** Parse event type. */
-    protected EventType extractEventType(JsonNode record) throws JsonProcessingException {
-        JsonNode tableChange = extractTableChange(record);
+    public EventType extractEventType(JsonNode historyRecord) throws JsonProcessingException {
+        JsonNode tableChange = extractTableChange(historyRecord);
         if (tableChange == null || tableChange.get("type") == null) {
             return null;
         }
@@ -161,59 +151,57 @@ public abstract class JsonDebeziumSchemaChange extends CdcSchemaChange {
         return null;
     }
 
-    protected JsonNode extractTableChange(JsonNode record) throws JsonProcessingException {
-        JsonNode historyRecord = extractHistoryRecord(record);
+    protected JsonNode extractTableChange(JsonNode historyRecord) throws JsonProcessingException {
         JsonNode tableChanges = historyRecord.get("tableChanges");
         if (Objects.nonNull(tableChanges)) {
             return tableChanges.get(0);
         }
-        LOG.warn("Failed to extract tableChanges. record={}", record);
+        LOG.warn("Failed to extract tableChanges. record={}", historyRecord);
         return null;
     }
 
-    protected boolean executeAlterDDLs(
+    public boolean executeAlterDDLs(
             List<String> ddlSqlList,
-            JsonNode recordRoot,
-            Tuple2<String, String> dorisTableTuple,
-            boolean status)
-            throws IOException, IllegalArgumentException {
+            boolean status) {
         if (CollectionUtils.isEmpty(ddlSqlList)) {
-            LOG.info("The recordRoot cannot extract ddl sql. recordRoot={}", recordRoot);
+            LOG.info("Ddl sql list is empty.");
             return false;
         }
 
         for (String ddlSql : ddlSqlList) {
-            status = schemaChangeManager.execute(ddlSql, dorisTableTuple.f0);
+            // 执行DDL SQL TODO: suyh - 待处理
+            // status = schemaChangeManager.execute(ddlSql, dorisTableTuple.f0);
             LOG.info("schema change status:{}, ddl: {}", status, ddlSql);
         }
+
         return status;
     }
 
-    protected void extractSourceConnector(JsonNode record) {
-        if (Objects.isNull(sourceConnector)) {
-            sourceConnector =
-                    SourceConnector.valueOf(
-                            record.get("source").get("connector").asText().toUpperCase());
-        }
-    }
-
-    protected String getCreateTableIdentifier(JsonNode record) {
-        String table = extractJsonNode(record.get("source"), "table");
-        String createTblName;
-        if (tableNameConverter != null) {
-            createTblName = tableNameConverter.convert(table);
-        } else {
-            createTblName = targetTablePrefix + table + targetTableSuffix;
-        }
-        return targetDatabase + "." + createTblName;
-    }
-
-    public Map<String, String> getTableMapping() {
-        return tableMapping;
-    }
-
-    @VisibleForTesting
-    public void setSchemaChangeManager(SchemaChangeManager schemaChangeManager) {
-        this.schemaChangeManager = schemaChangeManager;
-    }
+    // protected void extractSourceConnector(JsonNode record) {
+    //     if (Objects.isNull(sourceConnector)) {
+    //         sourceConnector =
+    //                 SourceConnector.valueOf(
+    //                         record.get("source").get("connector").asText().toUpperCase());
+    //     }
+    // }
+    //
+    // protected String getCreateTableIdentifier(JsonNode record) {
+    //     String table = extractJsonNode(record.get("source"), "table");
+    //     String createTblName;
+    //     if (tableNameConverter != null) {
+    //         createTblName = tableNameConverter.convert(table);
+    //     } else {
+    //         createTblName = targetTablePrefix + table + targetTableSuffix;
+    //     }
+    //     return targetDatabase + "." + createTblName;
+    // }
+    //
+    // public Map<String, String> getTableMapping() {
+    //     return tableMapping;
+    // }
+    //
+    // @VisibleForTesting
+    // public void setSchemaChangeManager(SchemaChangeManager schemaChangeManager) {
+    //     this.schemaChangeManager = schemaChangeManager;
+    // }
 }

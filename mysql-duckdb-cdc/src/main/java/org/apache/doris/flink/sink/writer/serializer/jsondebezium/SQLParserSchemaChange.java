@@ -17,15 +17,10 @@
 
 package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.StringUtils;
-
 import com.fasterxml.jackson.databind.JsonNode;
-import org.apache.doris.flink.catalog.doris.TableSchema;
 import org.apache.doris.flink.sink.schema.SQLParserSchemaManager;
-import org.apache.doris.flink.sink.schema.SchemaChangeManager;
 import org.apache.doris.flink.sink.writer.EventType;
+import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,26 +30,29 @@ import java.util.List;
 /** Schema changes are made by parsing upstream DDL statements. */
 public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
     private static final Logger LOG = LoggerFactory.getLogger(SQLParserSchemaChange.class);
+    private static final long serialVersionUID = 6482855986545948737L;
     private final SQLParserSchemaManager sqlParserSchemaManager;
+    private final String duckdbTableName;
 
-    public SQLParserSchemaChange(JsonDebeziumChangeContext changeContext) {
-        this.changeContext = changeContext;
-        this.dorisOptions = changeContext.getDorisOptions();
-        this.schemaChangeManager = new SchemaChangeManager(dorisOptions);
+    public SQLParserSchemaChange(String duckdbTableName) {
+        // this.changeContext = changeContext;
+        // this.dorisOptions = changeContext.getDorisOptions();
+        // this.schemaChangeManager = new SchemaChangeManager(dorisOptions);
         this.sqlParserSchemaManager = new SQLParserSchemaManager();
-        this.tableMapping = changeContext.getTableMapping();
-        this.objectMapper = changeContext.getObjectMapper();
-        this.targetDatabase = changeContext.getTargetDatabase();
-        this.dorisTableConfig = changeContext.getDorisTableConf();
-        this.targetTablePrefix =
-                changeContext.getTargetTablePrefix() == null
-                        ? ""
-                        : changeContext.getTargetTablePrefix();
-        this.targetTableSuffix =
-                changeContext.getTargetTableSuffix() == null
-                        ? ""
-                        : changeContext.getTargetTableSuffix();
-        this.tableNameConverter = changeContext.getTableNameConverter();
+        // this.tableMapping = changeContext.getTableMapping();
+        // this.objectMapper = changeContext.getObjectMapper();
+        // this.targetDatabase = changeContext.getTargetDatabase();
+        // this.dorisTableConfig = changeContext.getDorisTableConf();
+        // this.targetTablePrefix =
+        //         changeContext.getTargetTablePrefix() == null
+        //                 ? ""
+        //                 : changeContext.getTargetTablePrefix();
+        // this.targetTableSuffix =
+        //         changeContext.getTargetTableSuffix() == null
+        //                 ? ""
+        //                 : changeContext.getTargetTableSuffix();
+        // this.tableNameConverter = changeContext.getTableNameConverter();
+        this.duckdbTableName = duckdbTableName;
     }
 
     @Override
@@ -63,43 +61,44 @@ public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
     }
 
     @Override
-    public boolean schemaChange(JsonNode recordRoot) {
-        System.out.println("suyh - schemaChange: " + recordRoot);   // suyh
+    public boolean schemaChange(JsonNode historyRecord) {
+        System.out.println("suyh - schemaChange: " + historyRecord);   // suyh
         boolean status = false;
         try {
-            if (!StringUtils.isNullOrWhitespaceOnly(sourceTableName) && !checkTable(recordRoot)) {
-                return false;
-            }
+            // if (!StringUtils.isNullOrWhitespaceOnly(sourceTableName) && !checkTable(recordRoot)) {
+            //     return false;
+            // }
 
-            EventType eventType = extractEventType(recordRoot);
+            EventType eventType = extractEventType(historyRecord);
             if (eventType == null) {
-                LOG.warn("Failed to parse eventType. recordRoot={}", recordRoot);
+                LOG.warn("Failed to parse eventType. historyRecord={}", historyRecord);
                 return false;
             }
 
             if (eventType.equals(EventType.CREATE)) {
-                String dorisTable = getCreateTableIdentifier(recordRoot);
-                TableSchema tableSchema = tryParseCreateTableStatement(recordRoot, dorisTable);
-                status = schemaChangeManager.createTable(tableSchema);
-                if (status) {
-                    String cdcTbl = getCdcTableIdentifier(recordRoot);
-                    String dorisTbl = getCreateTableIdentifier(recordRoot);
-                    changeContext.getTableMapping().put(cdcTbl, dorisTbl);
-                    this.tableMapping = changeContext.getTableMapping();
-                    LOG.info(
-                            "create table ddl status: {}, add tableMapping {},{}",
-                            status,
-                            cdcTbl,
-                            dorisTbl);
-                }
+                // String dorisTable = getCreateTableIdentifier(recordRoot);
+                // TableSchema tableSchema = tryParseCreateTableStatement(recordRoot, dorisTable);
+                // status = schemaChangeManager.createTable(tableSchema);
+                // if (status) {
+                //     String cdcTbl = getCdcTableIdentifier(recordRoot);
+                //     String dorisTbl = getCreateTableIdentifier(recordRoot);
+                //     changeContext.getTableMapping().put(cdcTbl, dorisTbl);
+                //     this.tableMapping = changeContext.getTableMapping();
+                //     LOG.info(
+                //             "create table ddl status: {}, add tableMapping {},{}",
+                //             status,
+                //             cdcTbl,
+                //             dorisTbl);
+                // }
             } else if (eventType.equals(EventType.ALTER)) {
-                Tuple2<String, String> dorisTableTuple = getDorisTableTuple(recordRoot);
-                if (dorisTableTuple == null) {
-                    LOG.warn("Failed to get doris table tuple. record={}", recordRoot);
-                    return false;
-                }
-                List<String> ddlList = tryParseAlterDDLs(recordRoot);
-                status = executeAlterDDLs(ddlList, recordRoot, dorisTableTuple, status);
+                // suyh - 这里就是生成doris 数据库的唯一表，就是映射的表。即： dbName.tableName
+                // Tuple2<String, String> dorisTableTuple = getDorisTableTuple(recordRoot);
+                // if (dorisTableTuple == null) {
+                //     LOG.warn("Failed to get doris table tuple. record={}", recordRoot);
+                //     return false;
+                // }
+                List<String> ddlList = tryParseAlterDDLs(historyRecord);
+                status = executeAlterDDLs(ddlList, status);
             }
         } catch (Exception ex) {
             LOG.warn("schema change error : ", ex);
@@ -107,23 +106,22 @@ public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
         return status;
     }
 
-    @VisibleForTesting
-    public TableSchema tryParseCreateTableStatement(JsonNode record, String dorisTable)
-            throws IOException {
-        JsonNode historyRecord = extractHistoryRecord(record);
-        String ddl = extractJsonNode(historyRecord, "ddl");
-        extractSourceConnector(record);
-        return sqlParserSchemaManager.parseCreateTableStatement(
-                sourceConnector, ddl, dorisTable, dorisTableConfig);
-    }
+    // public TableSchema tryParseCreateTableStatement(JsonNode record, String dorisTable)
+    //         throws IOException {
+    //     JsonNode historyRecord = extractHistoryRecord(record);
+    //     String ddl = extractJsonNode(historyRecord, "ddl");
+    //     extractSourceConnector(record);
+    //     return sqlParserSchemaManager.parseCreateTableStatement(
+    //             sourceConnector, ddl, dorisTable, dorisTableConfig);
+    // }
 
-    @VisibleForTesting
-    public List<String> tryParseAlterDDLs(JsonNode record) throws IOException {
-        String dorisTable =
-                JsonDebeziumChangeUtils.getDorisTableIdentifier(record, dorisOptions, tableMapping);
-        JsonNode historyRecord = extractHistoryRecord(record);
+    public List<String> tryParseAlterDDLs(JsonNode historyRecord) throws IOException {
+        // String dorisTable =
+        //         JsonDebeziumChangeUtils.getDorisTableIdentifier(record, dorisOptions, tableMapping);
+        // JsonNode historyRecord = extractHistoryRecord(record);
         String ddl = extractJsonNode(historyRecord, "ddl");
-        extractSourceConnector(record);
-        return sqlParserSchemaManager.parseAlterDDLs(sourceConnector, ddl, dorisTable);
+        // extractSourceConnector(record);  // suyh - 不需要了，这里是提取源数据库是什么数据库，我们这里只处理mysql -> duckdb
+        // String duckdbTableName = "db.prefix_tb_user";
+        return sqlParserSchemaManager.parseAlterDDLs(SourceConnector.MYSQL, ddl, duckdbTableName);
     }
 }

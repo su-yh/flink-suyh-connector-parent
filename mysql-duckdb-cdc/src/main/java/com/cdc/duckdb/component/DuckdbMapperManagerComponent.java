@@ -31,6 +31,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 @Slf4j
 public class DuckdbMapperManagerComponent {
+    public static DuckdbMapperManagerComponent INSTANCE;
+
     private final SqlSessionFactory sqlSessionFactory;
     private final SqlSessionTemplate sqlSessionTemplate;
     private final GenericApplicationContext genericApplicationContext;
@@ -42,6 +44,7 @@ public class DuckdbMapperManagerComponent {
 
     @PostConstruct
     public void init() {
+        INSTANCE = this;
         DuckDBWriter.duckdbMapperManagerComponent = this;
 
         if (cdcConcurrentThreads == null) {
@@ -94,7 +97,7 @@ public class DuckdbMapperManagerComponent {
         return mapperBeanMapping.get(duckdbTableName);
     }
 
-    public void ddl(RecordDto recordDto) {
+    public void ddl(RecordDto recordDto) throws JsonProcessingException {
         String duckdbTbName = mappingDuckdbTbName(recordDto.getSource().getTable());
         cdcConcurrentThreads.ddl(duckdbTbName, recordDto);
     }

@@ -149,19 +149,12 @@ public class JsonUtils {
      * @param json 语法正确的json 字符串
      * @return 返回一个JsonNode 对象
      */
-    public static JsonNode deserializeToJsonNode(String json) {
+    public static JsonNode deserializeToJsonNode(String json) throws JsonProcessingException {
         return deserializeToJsonNode(json, OBJECT_MAPPER);
     }
 
-    public static JsonNode deserializeToJsonNode(String json, ObjectMapper mapper) {
-        JsonNode res = null;
-        try {
-            res = mapper.readTree(json);
-        } catch (JsonProcessingException e) {
-            log.error("deserializeMap object failed. json string: " + json, e);
-        }
-
-        return res;
+    public static JsonNode deserializeToJsonNode(String json, ObjectMapper mapper) throws JsonProcessingException {
+        return mapper.readTree(json);
     }
 
     /**
@@ -172,11 +165,11 @@ public class JsonUtils {
      * @param json 语法正确的Json 数组字符串
      * @return 返回一个ArrayNode 对象
      */
-    public static ArrayNode deserializeToArrayNode(String json) {
+    public static ArrayNode deserializeToArrayNode(String json) throws JsonProcessingException {
         return deserializeToArrayNode(json, OBJECT_MAPPER);
     }
 
-    public static ArrayNode deserializeToArrayNode(String json, ObjectMapper mapper) {
+    public static ArrayNode deserializeToArrayNode(String json, ObjectMapper mapper) throws JsonProcessingException {
         return (ArrayNode) deserializeToJsonNode(json);
     }
 

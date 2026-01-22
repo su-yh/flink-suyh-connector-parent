@@ -214,6 +214,13 @@ public abstract class DuckdbDatabaseSync {
                         dto.setTransaction(transactionNode.toString());
                     }
                 }
+                {
+                    JsonNode historyRecord = recordRoot.get("historyRecord");
+                    if (historyRecord != null && !(historyRecord instanceof NullNode)) {
+                        String historyRecordJson = historyRecord.asText();
+                        dto.setHistoryRecordJson(historyRecordJson);
+                    }
+                }
 
                 return dto;
             }

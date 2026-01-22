@@ -2,6 +2,7 @@ package com.cdc.duckdb.component;
 
 import com.cdc.duckdb.mp.entity.BaseEntity;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.duckdb.sink.RecordDto;
@@ -92,7 +93,7 @@ public class CdcConcurrentThreads {
         restoreBuffer(tableRecordBuffer);
     }
 
-    public void ddl(String duckdbTbName, RecordDto recordDto) {
+    public void ddl(String duckdbTbName, RecordDto recordDto) throws JsonProcessingException {
         TableRecordBuffer tableRecordBuffer = takeBuffer();
         tableRecordBuffer.ddl(duckdbTbName, recordDto);
         restoreBuffer(tableRecordBuffer);
