@@ -34,7 +34,7 @@ public class CreateTableIfNotExists extends AbstractMethod {
         InjectorUtils.extractDuckdbColumnType(columns, null, modelClass);
 
         String sqlScript = buildCreateTableSqlScript(tableName, columns);
-        log.debug("sqlScript: {}", sqlScript);
+        log.info("sqlScript: {}", sqlScript);
         Class<?> parameterType = null;  // 参数类型
         SqlSource sqlSource = languageDriver.createSqlSource(configuration, sqlScript, parameterType);
         return this.addInsertMappedStatement(

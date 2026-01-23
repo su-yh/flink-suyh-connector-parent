@@ -104,6 +104,10 @@ public class SQLParserSchemaManager implements Serializable {
                                     processChangeColumnOperation(alterExpression, dorisTable);
                             ddlList.add(changeColumnDDL);
                             break;
+                        case MODIFY:
+                            List<String> modifyColumnDDL = processModifyColumnOperation(sourceConnector, alterExpression, dorisTable);
+                            ddlList.addAll(modifyColumnDDL);
+                            break;
                         case RENAME:    // rename column 在mysql 5.7 似乎还不支持
                             String renameColumnDDL =
                                     processRenameColumnOperation(alterExpression, dorisTable);
@@ -123,6 +127,25 @@ public class SQLParserSchemaManager implements Serializable {
             LOG.warn("Failed to parse DDL SQL, SQL={}", ddl, e);
         }
         return ddlList;
+    }
+
+    private List<String> processModifyColumnOperation(
+            SourceConnector sourceConnector, AlterExpression alterExpression, String duckdbTable) {
+        List<ColumnDataType> colDataTypeList = alterExpression.getColDataTypeList();
+        List<String> modifyColumnList = new ArrayList<>();
+        for (ColumnDataType columnDataType : colDataTypeList) {
+            FieldSchema fieldSchema =
+                    getFieldSchema(
+                            columnDataType.getColumnName(),
+                            columnDataType.getColumnSpecs(),
+                            columnDataType.getColDataType(),
+                            sourceConnector);
+
+            String modifyColumnDDL = SchemaChangeHelper.buildModifyColumnDataTypeDDL(duckdbTable, fieldSchema);
+            LOG.info("Parsed modify column DDL SQL is: {}", modifyColumnDDL);
+            modifyColumnList.add(modifyColumnDDL);
+        }
+        return modifyColumnList;
     }
 
     public TableSchema parseCreateTableStatement(
