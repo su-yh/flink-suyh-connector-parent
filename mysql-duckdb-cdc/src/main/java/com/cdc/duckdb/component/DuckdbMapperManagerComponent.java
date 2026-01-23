@@ -8,7 +8,6 @@ import io.debezium.data.Envelope;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
-import org.apache.duckdb.sink.DuckDBWriter;
 import org.apache.duckdb.sink.JsonUtils;
 import org.apache.duckdb.sink.RecordDto;
 import org.apache.ibatis.binding.MapperRegistry;
@@ -46,7 +45,6 @@ public class DuckdbMapperManagerComponent {
     @PostConstruct
     public void init() {
         INSTANCE = this;
-        DuckDBWriter.duckdbMapperManagerComponent = this;
 
         if (cdcConcurrentThreads == null) {
             cdcConcurrentThreads = new CdcConcurrentThreads();
