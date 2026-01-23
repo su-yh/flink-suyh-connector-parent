@@ -94,11 +94,7 @@ public class TableChangeRecorder {
         }
 
         for (String ddl : ddlList) {
-            baseMapperDuckdb.executeSql(ddl);
+            baseMapperDuckdb.executeDdlSql(ddl);
         }
-
-        // // TODO: suyh - 如何解析DDL
-        // log.info("truncate table {}", duckdbTableName);
-        // baseMapperDuckdb.truncateTable();
     }
 }

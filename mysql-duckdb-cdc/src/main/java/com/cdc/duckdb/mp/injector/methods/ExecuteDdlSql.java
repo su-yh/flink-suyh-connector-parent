@@ -13,12 +13,12 @@ import org.apache.ibatis.mapping.SqlSource;
  * @since 2026-01-14
  */
 @Slf4j
-public class ExecuteSql extends AbstractMethod {
+public class ExecuteDdlSql extends AbstractMethod {
     private static final long serialVersionUID = 4402331192104897355L;
     // SqlMethod
-    private static final String METHOD = "executeSql";
+    private static final String METHOD = "executeDdlSql";
 
-    public ExecuteSql() {
+    public ExecuteDdlSql() {
         super(METHOD);
     }
 
