@@ -6,7 +6,6 @@ import org.apache.doris.flink.tools.cdc.DorisTableConfig;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.apache.duckdb.sink.DuckdbDatabaseSync;
 import org.apache.duckdb.sink.DuckdbMysqlDatabaseSync;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
@@ -41,7 +40,7 @@ import java.util.concurrent.TimeUnit;
  */
 @Component
 @Slf4j
-public class CdcRunner implements ApplicationRunner {
+public class FlinkCdcRunner implements ApplicationRunner {
     public static String[] args = null;
 
     private static final List<String> EMPTY_KEYS =
@@ -57,7 +56,10 @@ public class CdcRunner implements ApplicationRunner {
         log.info("init...");
         String[] opArgs = Arrays.copyOfRange(args, 1, args.length);
         MultipleParameterTool params = MultipleParameterTool.fromArgs(opArgs);
-        jobClient = createMySQLSyncDuckdb(params, this.duckdbMapperManagerComponent);
+        Preconditions.checkArgument(params.has(DatabaseSyncConfig.MYSQL_CONF));
+        Map<String, String> mysqlMap = getConfigMap(params, DatabaseSyncConfig.MYSQL_CONF);
+        Configuration mysqlConfig = Configuration.fromMap(mysqlMap);
+        jobClient = createFlinkCdcJob(params, mysqlConfig, duckdbMapperManagerComponent);
     }
 
     @EventListener(ContextClosedEvent.class)
@@ -68,17 +70,12 @@ public class CdcRunner implements ApplicationRunner {
         }
 
         try {
-            // jobClient.cancel().get();
-            // 3. 第一步：查询作业当前状态（异步查询，避免阻塞）
             CompletableFuture<JobStatus> jobStatusFuture = jobClient.getJobStatus();
-            // 获取状态（设置超时时间，避免无限等待，可根据业务调整）
             JobStatus currentJobStatus = jobStatusFuture.get(10, TimeUnit.SECONDS);
 
-            // 4. 第二步：判断作业是否处于「可取消」的有效状态
             boolean isCancelable = isJobCancelable(currentJobStatus);
             if (isCancelable) {
                 System.out.printf("作业当前状态：%s，符合取消条件，开始优雅取消...%n", currentJobStatus);
-                // 5. 第三步：执行优雅取消（get() 阻塞等待取消完成，可异步处理）
                 jobClient.cancel().get();
                 System.out.println("作业取消成功！");
             } else {
@@ -94,31 +91,18 @@ public class CdcRunner implements ApplicationRunner {
         if (jobStatus == null) {
             return false;
         }
-        // 只针对「运行中/已创建/已调度/已暂停」状态执行取消
-        return jobStatus == JobStatus.RUNNING        // 作业正常运行（核心取消场景）
-                || jobStatus == JobStatus.CREATED     // 作业已创建，未开始执行
-                || jobStatus == JobStatus.INITIALIZING; // 作业正在初始化，等待JobManager就绪
+        return jobStatus == JobStatus.RUNNING
+                || jobStatus == JobStatus.CREATED
+                || jobStatus == JobStatus.INITIALIZING;
     }
 
     @NonNull
-    private static JobClient createMySQLSyncDuckdb(MultipleParameterTool params, DuckdbMapperManagerComponent duckdbMapperManagerComponent) throws Exception {
-        log.info("createMySQLSyncDuckdb");
-        Preconditions.checkArgument(params.has(DatabaseSyncConfig.MYSQL_CONF));
-        Map<String, String> mysqlMap = getConfigMap(params, DatabaseSyncConfig.MYSQL_CONF);
-        Configuration mysqlConfig = Configuration.fromMap(mysqlMap);
-        DuckdbDatabaseSync databaseSync = new DuckdbMysqlDatabaseSync(duckdbMapperManagerComponent);
-       return syncDuckdb(params, databaseSync, mysqlConfig, SourceConnector.MYSQL);
-    }
-
-
-    @NonNull
-    private static JobClient syncDuckdb(
+    private static JobClient createFlinkCdcJob(
             MultipleParameterTool params,
-            DuckdbDatabaseSync databaseSync,
             Configuration config,
-            SourceConnector sourceConnector)
+            DuckdbMapperManagerComponent duckdbMapperManagerComponent)
             throws Exception {
-        log.info("syncDuckdb init flink job");
+        log.info("Flink job preparing parameters");
         String jobName = params.get(DatabaseSyncConfig.JOB_NAME);
         String database = params.get(DatabaseSyncConfig.DATABASE);
         String tablePrefix = params.get(DatabaseSyncConfig.TABLE_PREFIX);
@@ -153,7 +137,7 @@ public class CdcRunner implements ApplicationRunner {
 
             if (false) {
                 // 从checkpoint 启动
-                String checkpointPath = "file:///E:\\tmp\\cem-cdc\\checkpoints\\65209216bfe70db743bc590ae8eb257a\\chk-1\\_metadata";
+                String checkpointPath = "file:///E:\\tmp\\cem-cdc\\checkpoints\\472cfda9ad0a43d99c73796dfcd715d3\\chk-4\\_metadata";
                 configuration.setString("execution.savepoint.path", checkpointPath);
             }
             env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration);
@@ -180,6 +164,8 @@ public class CdcRunner implements ApplicationRunner {
             // 禁止失败重试：一旦出错，立即停止任务（本地调试用）
             env.setRestartStrategy(RestartStrategies.noRestart());
         }
+
+        DuckdbDatabaseSync databaseSync = new DuckdbMysqlDatabaseSync(duckdbMapperManagerComponent);
         databaseSync
                 .setEnv(env)
                 .setDatabase(database)
@@ -208,17 +194,16 @@ public class CdcRunner implements ApplicationRunner {
         if (StringUtils.isNullOrWhitespaceOnly(jobName)) {
             jobName =
                     String.format(
-                            "%s-Doris Sync Database: %s",
-                            sourceConnector.getConnectorName(),
+                            "%s-Duckdb Sync Database: %s",
+                            SourceConnector.MYSQL.getConnectorName(),
                             config.getString(
                                     DatabaseSyncConfig.DATABASE_NAME, DatabaseSyncConfig.DB));
         }
 
-        log.info("syncDuckdb env.executeAsync(jobName)");
+        log.info("Flink job start");
         return env.executeAsync(jobName);
     }
 
-    @VisibleForTesting
     public static Map<String, String> getConfigMap(MultipleParameterTool params, String key) {
         if (!params.has(key)) {
             System.out.println(

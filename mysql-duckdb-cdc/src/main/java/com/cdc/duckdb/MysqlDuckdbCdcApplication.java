@@ -1,6 +1,6 @@
 package com.cdc.duckdb;
 
-import com.cdc.duckdb.component.CdcRunner;
+import com.cdc.duckdb.component.FlinkCdcRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -11,7 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class MysqlDuckdbCdcApplication {
     public static void main(String[] args) {
-        CdcRunner.args = args;
+        FlinkCdcRunner.args = args;
         SpringApplication.run(MysqlDuckdbCdcApplication.class);
     }
 }
