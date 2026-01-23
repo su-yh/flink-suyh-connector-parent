@@ -104,7 +104,7 @@ public class SQLParserSchemaManager implements Serializable {
                                     processChangeColumnOperation(alterExpression, dorisTable);
                             ddlList.add(changeColumnDDL);
                             break;
-                        case RENAME:
+                        case RENAME:    // rename column 在mysql 5.7 似乎还不支持
                             String renameColumnDDL =
                                     processRenameColumnOperation(alterExpression, dorisTable);
                             ddlList.add(renameColumnDDL);

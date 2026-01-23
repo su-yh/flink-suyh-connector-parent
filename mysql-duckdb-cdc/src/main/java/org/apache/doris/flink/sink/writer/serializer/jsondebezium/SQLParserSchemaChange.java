@@ -52,7 +52,7 @@ public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
         //                 ? ""
         //                 : changeContext.getTargetTableSuffix();
         // this.tableNameConverter = changeContext.getTableNameConverter();
-        this.duckdbTableName = duckdbTableName;
+        this.duckdbTableName = String.format("\"main\".\"%s\"", duckdbTableName);
     }
 
     @Override
@@ -120,6 +120,7 @@ public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
         //         JsonDebeziumChangeUtils.getDorisTableIdentifier(record, dorisOptions, tableMapping);
         // JsonNode historyRecord = extractHistoryRecord(record);
         String ddl = extractJsonNode(historyRecord, "ddl");
+        ddl = ddl.replace("`", "\"");
         // extractSourceConnector(record);  // suyh - 不需要了，这里是提取源数据库是什么数据库，我们这里只处理mysql -> duckdb
         // String duckdbTableName = "db.prefix_tb_user";
         return sqlParserSchemaManager.parseAlterDDLs(SourceConnector.MYSQL, ddl, duckdbTableName);

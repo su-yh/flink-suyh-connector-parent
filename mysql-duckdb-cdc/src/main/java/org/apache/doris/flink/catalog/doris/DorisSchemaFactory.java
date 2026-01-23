@@ -177,7 +177,7 @@ public class DorisSchemaFactory {
             sb.append(" AUTO PARTITION BY RANGE ")
                     .append(
                             String.format(
-                                    "(date_trunc(`%s`, '%s'))",
+                                    "(date_trunc(\"%s\", '%s'))",
                                     schema.getPartitionInfo().f0, schema.getPartitionInfo().f1))
                     .append("()");
         }
@@ -248,10 +248,10 @@ public class DorisSchemaFactory {
     }
 
     public static String identifier(String name) {
-        if (name.startsWith("`") && name.endsWith("`")) {
+        if (name.startsWith("\"") && name.endsWith("\"")) {
             return name;
         }
-        return "`" + name + "`";
+        return "\"" + name + "\"";
     }
 
     public static String quoteDefaultValue(String defaultValue) {
