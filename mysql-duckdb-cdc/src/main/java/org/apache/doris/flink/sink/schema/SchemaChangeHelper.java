@@ -23,6 +23,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.doris.flink.catalog.doris.DorisSchemaFactory;
 import org.apache.doris.flink.catalog.doris.FieldSchema;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -42,8 +43,9 @@ public class SchemaChangeHelper {
     private static final String CHECK_DATABASE_EXISTS =
             "SELECT `SCHEMA_NAME` FROM `INFORMATION_SCHEMA`.`SCHEMATA` WHERE SCHEMA_NAME = '%s'";
     private static final String CREATE_DATABASE_DDL = "CREATE DATABASE IF NOT EXISTS %s";
-    private static final String MODIFY_TYPE_DDL = "ALTER TABLE %s MODIFY COLUMN %s %s";
-    private static final String MODIFY_COMMENT_DDL = "ALTER TABLE %s MODIFY COLUMN %s COMMENT '%s'";
+    private static final String MODIFY_TYPE_DDL = "ALTER TABLE %s ALTER COLUMN %s SET DATA TYPE %s";
+    private static final String MODIFY_DEFAULT_DDL = "ALTER TABLE %s ALTER COLUMN %s SET DEFAULT %s";
+    private static final String MODIFY_COMMENT_DDL = "COMMENT ON COLUMN %s IS '%s'";
     private static final String SHOW_FULL_COLUMN_DDL = "SHOW FULL COLUMNS FROM `%s`.`%s`";
 
     public static void compareSchema(
@@ -157,31 +159,38 @@ public class SchemaChangeHelper {
             String tableIdentifier, String columnName, String newComment) {
         return String.format(
                 MODIFY_COMMENT_DDL,
-                DorisSchemaFactory.quoteTableIdentifier(tableIdentifier),
-                DorisSchemaFactory.identifier(columnName),
+                DorisSchemaFactory.quoteTableIdentifier(tableIdentifier) + "." + DorisSchemaFactory.identifier(columnName),
                 DorisSchemaFactory.quoteComment(newComment));
     }
 
-    public static String buildModifyColumnDataTypeDDL(
+    public static List<String> buildModifyColumnDataTypeDDL(
             String tableIdentifier, FieldSchema fieldSchema) {
+        List<String> ddlList = new ArrayList<>();
         String columnName = fieldSchema.getName();
         String dataType = fieldSchema.getTypeString();
         String comment = fieldSchema.getComment();
         String defaultValue = fieldSchema.getDefaultValue();
-        StringBuilder modifyDDL =
-                new StringBuilder(
+        String modifyDataTypeDDL =
                         String.format(
                                 MODIFY_TYPE_DDL,
                                 DorisSchemaFactory.quoteTableIdentifier(tableIdentifier),
                                 DorisSchemaFactory.identifier(columnName),
-                                dataType));
+                                dataType);
+        ddlList.add(modifyDataTypeDDL);
+
         if (defaultValue != null) {
-            modifyDDL
-                    .append(" DEFAULT ")
-                    .append(DorisSchemaFactory.quoteDefaultValue(defaultValue));
+            String modifyDefaultDDL = String.format(
+                    MODIFY_DEFAULT_DDL,
+                    DorisSchemaFactory.quoteTableIdentifier(tableIdentifier),
+                    DorisSchemaFactory.identifier(columnName),
+                    DorisSchemaFactory.quoteDefaultValue(defaultValue));
+            ddlList.add(modifyDefaultDDL);
         }
-        commentColumn(modifyDDL, comment);
-        return modifyDDL.toString();
+        if (StringUtils.isNotEmpty(comment)) {
+            String modifyCommentDdl = buildModifyColumnCommentDDL(tableIdentifier, columnName, comment);
+            ddlList.add(modifyCommentDdl);
+        }
+        return ddlList;
     }
 
     private static void commentColumn(StringBuilder ddl, String comment) {

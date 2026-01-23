@@ -1,6 +1,9 @@
 package org.apache.duckdb.sink;
 
 import com.cdc.duckdb.component.DuckdbMapperManagerComponent;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.doris.flink.sink.writer.EventType;
+import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChange;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.slf4j.Logger;
@@ -38,7 +41,25 @@ public class DuckDBWriter implements
         if (!StringUtils.hasText(op)) {
             // 参考：org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerializer.serialize 的判断
             // 只要op 为null 就是ddl 操作
-            duckdbMapperManagerComponent.ddl(recordDto);
+
+            String historyRecordJson = recordDto.getHistoryRecordJson();
+            if (!StringUtils.hasText(historyRecordJson)) {
+                LOG.warn("historyRecordJson is empty");
+                return;
+            }
+
+            JsonNode historyRecord = JsonUtils.deserializeToJsonNode(historyRecordJson);
+            EventType eventType = JsonDebeziumSchemaChange.extractEventType(historyRecord);
+            if (eventType == null) {
+                LOG.warn("Failed to parse eventType. historyRecord={}", historyRecordJson);
+                return;
+            }
+
+            if (eventType.equals(EventType.CREATE)) {
+                LOG.info("IGNORE CREATE TABLE, table name: {}", recordDto.getSource().getTable());
+            } else if (eventType.equals(EventType.ALTER)) {
+                duckdbMapperManagerComponent.ddlAlter(recordDto.getSource().getTable(), historyRecord);
+            }
         } else {
             duckdbMapperManagerComponent.write(recordDto);
         }

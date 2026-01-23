@@ -19,12 +19,10 @@ package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.doris.flink.sink.schema.SQLParserSchemaManager;
-import org.apache.doris.flink.sink.writer.EventType;
 import org.apache.doris.flink.tools.cdc.SourceConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.List;
 
 /** Schema changes are made by parsing upstream DDL statements. */
@@ -62,48 +60,49 @@ public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
 
     @Override
     public boolean schemaChange(JsonNode historyRecord) {
-        System.out.println("suyh - schemaChange: " + historyRecord);   // suyh
-        boolean status = false;
-        try {
-            // if (!StringUtils.isNullOrWhitespaceOnly(sourceTableName) && !checkTable(recordRoot)) {
-            //     return false;
-            // }
-
-            EventType eventType = extractEventType(historyRecord);
-            if (eventType == null) {
-                LOG.warn("Failed to parse eventType. historyRecord={}", historyRecord);
-                return false;
-            }
-
-            if (eventType.equals(EventType.CREATE)) {
-                // String dorisTable = getCreateTableIdentifier(recordRoot);
-                // TableSchema tableSchema = tryParseCreateTableStatement(recordRoot, dorisTable);
-                // status = schemaChangeManager.createTable(tableSchema);
-                // if (status) {
-                //     String cdcTbl = getCdcTableIdentifier(recordRoot);
-                //     String dorisTbl = getCreateTableIdentifier(recordRoot);
-                //     changeContext.getTableMapping().put(cdcTbl, dorisTbl);
-                //     this.tableMapping = changeContext.getTableMapping();
-                //     LOG.info(
-                //             "create table ddl status: {}, add tableMapping {},{}",
-                //             status,
-                //             cdcTbl,
-                //             dorisTbl);
-                // }
-            } else if (eventType.equals(EventType.ALTER)) {
-                // suyh - 这里就是生成doris 数据库的唯一表，就是映射的表。即： dbName.tableName
-                // Tuple2<String, String> dorisTableTuple = getDorisTableTuple(recordRoot);
-                // if (dorisTableTuple == null) {
-                //     LOG.warn("Failed to get doris table tuple. record={}", recordRoot);
-                //     return false;
-                // }
-                List<String> ddlList = tryParseAlterDDLs(historyRecord);
-                status = executeAlterDDLs(ddlList, status);
-            }
-        } catch (Exception ex) {
-            LOG.warn("schema change error : ", ex);
-        }
-        return status;
+        throw new UnsupportedOperationException();
+        // System.out.println("suyh - schemaChange: " + historyRecord);   // suyh
+        // boolean status = false;
+        // try {
+        //     // if (!StringUtils.isNullOrWhitespaceOnly(sourceTableName) && !checkTable(recordRoot)) {
+        //     //     return false;
+        //     // }
+        //
+        //     EventType eventType = extractEventType(historyRecord);
+        //     if (eventType == null) {
+        //         LOG.warn("Failed to parse eventType. historyRecord={}", historyRecord);
+        //         return false;
+        //     }
+        //
+        //     if (eventType.equals(EventType.CREATE)) {
+        //         // String dorisTable = getCreateTableIdentifier(recordRoot);
+        //         // TableSchema tableSchema = tryParseCreateTableStatement(recordRoot, dorisTable);
+        //         // status = schemaChangeManager.createTable(tableSchema);
+        //         // if (status) {
+        //         //     String cdcTbl = getCdcTableIdentifier(recordRoot);
+        //         //     String dorisTbl = getCreateTableIdentifier(recordRoot);
+        //         //     changeContext.getTableMapping().put(cdcTbl, dorisTbl);
+        //         //     this.tableMapping = changeContext.getTableMapping();
+        //         //     LOG.info(
+        //         //             "create table ddl status: {}, add tableMapping {},{}",
+        //         //             status,
+        //         //             cdcTbl,
+        //         //             dorisTbl);
+        //         // }
+        //     } else if (eventType.equals(EventType.ALTER)) {
+        //         // suyh - 这里就是生成doris 数据库的唯一表，就是映射的表。即： dbName.tableName
+        //         // Tuple2<String, String> dorisTableTuple = getDorisTableTuple(recordRoot);
+        //         // if (dorisTableTuple == null) {
+        //         //     LOG.warn("Failed to get doris table tuple. record={}", recordRoot);
+        //         //     return false;
+        //         // }
+        //         List<String> ddlList = tryParseAlterDDLs(historyRecord);
+        //         status = executeAlterDDLs(ddlList);
+        //     }
+        // } catch (Exception ex) {
+        //     LOG.warn("schema change error : ", ex);
+        // }
+        // return status;
     }
 
     // public TableSchema tryParseCreateTableStatement(JsonNode record, String dorisTable)
@@ -115,14 +114,13 @@ public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
     //             sourceConnector, ddl, dorisTable, dorisTableConfig);
     // }
 
-    public List<String> tryParseAlterDDLs(JsonNode historyRecord) throws IOException {
+    public List<String> tryParseAlterDDLs(JsonNode historyRecord) {
         // String dorisTable =
         //         JsonDebeziumChangeUtils.getDorisTableIdentifier(record, dorisOptions, tableMapping);
         // JsonNode historyRecord = extractHistoryRecord(record);
         String ddl = extractJsonNode(historyRecord, "ddl");
         ddl = ddl.replace("`", "\"");
         // extractSourceConnector(record);  // suyh - 不需要了，这里是提取源数据库是什么数据库，我们这里只处理mysql -> duckdb
-        // String duckdbTableName = "db.prefix_tb_user";
         return sqlParserSchemaManager.parseAlterDDLs(SourceConnector.MYSQL, ddl, duckdbTableName);
     }
 }

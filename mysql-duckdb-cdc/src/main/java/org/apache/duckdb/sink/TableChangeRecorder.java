@@ -2,14 +2,13 @@ package org.apache.duckdb.sink;
 
 import com.cdc.duckdb.mp.entity.BaseEntity;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.debezium.data.Envelope;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.SQLParserSchemaChange;
-import org.springframework.util.StringUtils;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -83,20 +82,20 @@ public class TableChangeRecorder {
         return upsertEntitiesMap.isEmpty() && deleteEntitiesMap.isEmpty();
     }
 
-    public void ddl(RecordDto recordDto) throws JsonProcessingException {
+    public void ddlAlter(JsonNode historyRecord) {
         // 参考：org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerializer.initSchemaChangeInstance
         // 使用 SQLParserSchemaChange
         // DDL 入口：org.apache.doris.flink.sink.writer.serializer.jsondebezium.SQLParserSchemaChange.schemaChange
 
-        String historyRecordJson = recordDto.getHistoryRecordJson();
-        if (!StringUtils.hasText(historyRecordJson)) {
-            log.warn("historyRecordJson is empty");
+        List<String> ddlList = schemaChange.tryParseAlterDDLs(historyRecord);
+        if (ddlList == null || ddlList.isEmpty()) {
+            log.warn("ddl list is empty. historyRecord: {}", historyRecord.toString());
             return;
         }
 
-        JsonNode historyRecord = JsonUtils.deserializeToJsonNode(historyRecordJson);
-
-        schemaChange.schemaChange(historyRecord);
+        for (String ddl : ddlList) {
+            baseMapperDuckdb.executeSql(ddl);
+        }
 
         // // TODO: suyh - 如何解析DDL
         // log.info("truncate table {}", duckdbTableName);

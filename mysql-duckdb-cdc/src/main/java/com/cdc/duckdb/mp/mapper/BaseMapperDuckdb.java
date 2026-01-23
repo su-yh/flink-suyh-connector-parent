@@ -16,7 +16,9 @@ import java.util.List;
 @DS(DataSourceNames.STATISTICAL_ANALYSIS_DUCK)
 public interface BaseMapperDuckdb<T> extends BaseMapper<T> {
     String ENTITIES = "entities";
+    String SQL_TEXT_KEY = "sqlText";
 
+    void executeSql(@Param(SQL_TEXT_KEY) String sql);
     void truncateTable();
     void createTableIfNotExists();
     void upsertEntities(@Param(ENTITIES) Collection<T> entities);

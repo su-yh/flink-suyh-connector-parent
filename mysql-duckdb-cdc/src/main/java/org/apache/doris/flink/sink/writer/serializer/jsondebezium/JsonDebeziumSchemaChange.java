@@ -20,7 +20,6 @@ package org.apache.doris.flink.sink.writer.serializer.jsondebezium;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.NullNode;
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.doris.flink.sink.writer.EventType;
 import org.apache.doris.flink.tools.cdc.SourceSchema;
 import org.apache.duckdb.sink.JsonUtils;
@@ -28,7 +27,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -136,7 +134,7 @@ public abstract class JsonDebeziumSchemaChange extends CdcSchemaChange {
     }
 
     /** Parse event type. */
-    public EventType extractEventType(JsonNode historyRecord) throws JsonProcessingException {
+    public static EventType extractEventType(JsonNode historyRecord) throws JsonProcessingException {
         JsonNode tableChange = extractTableChange(historyRecord);
         if (tableChange == null || tableChange.get("type") == null) {
             return null;
@@ -151,30 +149,13 @@ public abstract class JsonDebeziumSchemaChange extends CdcSchemaChange {
         return null;
     }
 
-    protected JsonNode extractTableChange(JsonNode historyRecord) throws JsonProcessingException {
+    protected static JsonNode extractTableChange(JsonNode historyRecord) throws JsonProcessingException {
         JsonNode tableChanges = historyRecord.get("tableChanges");
         if (Objects.nonNull(tableChanges)) {
             return tableChanges.get(0);
         }
         LOG.warn("Failed to extract tableChanges. record={}", historyRecord);
         return null;
-    }
-
-    public boolean executeAlterDDLs(
-            List<String> ddlSqlList,
-            boolean status) {
-        if (CollectionUtils.isEmpty(ddlSqlList)) {
-            LOG.info("Ddl sql list is empty.");
-            return false;
-        }
-
-        for (String ddlSql : ddlSqlList) {
-            // 执行DDL SQL TODO: suyh - 待处理
-            // status = schemaChangeManager.execute(ddlSql, dorisTableTuple.f0);
-            LOG.info("schema change status:{}, ddl: {}", status, ddlSql);
-        }
-
-        return status;
     }
 
     // protected void extractSourceConnector(JsonNode record) {

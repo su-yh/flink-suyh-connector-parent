@@ -3,6 +3,7 @@ package com.cdc.duckdb.component;
 import com.cdc.duckdb.mp.entity.BaseEntity;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import io.debezium.data.Envelope;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -97,9 +98,9 @@ public class DuckdbMapperManagerComponent {
         return mapperBeanMapping.get(duckdbTableName);
     }
 
-    public void ddl(RecordDto recordDto) throws JsonProcessingException {
-        String duckdbTbName = mappingDuckdbTbName(recordDto.getSource().getTable());
-        cdcConcurrentThreads.ddl(duckdbTbName, recordDto);
+    public void ddlAlter(String tbName, JsonNode historyRecord) {
+        String duckdbTbName = mappingDuckdbTbName(tbName);
+        cdcConcurrentThreads.ddlAlter(duckdbTbName, historyRecord);
     }
 
     // 读和写都要允许阻塞，直到成功为止，不然flink 的checkpoint 将会出现问题。

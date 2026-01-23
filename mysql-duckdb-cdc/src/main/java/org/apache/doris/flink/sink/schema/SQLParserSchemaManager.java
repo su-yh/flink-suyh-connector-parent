@@ -141,9 +141,11 @@ public class SQLParserSchemaManager implements Serializable {
                             columnDataType.getColDataType(),
                             sourceConnector);
 
-            String modifyColumnDDL = SchemaChangeHelper.buildModifyColumnDataTypeDDL(duckdbTable, fieldSchema);
-            LOG.info("Parsed modify column DDL SQL is: {}", modifyColumnDDL);
-            modifyColumnList.add(modifyColumnDDL);
+            List<String> modifyColumnDDLList = SchemaChangeHelper.buildModifyColumnDataTypeDDL(duckdbTable, fieldSchema);
+            for (String modifyColumnDDL : modifyColumnDDLList) {
+                LOG.info("Parsed modify column DDL SQL is: {}", modifyColumnDDL);
+            }
+            modifyColumnList.addAll(modifyColumnDDLList);
         }
         return modifyColumnList;
     }

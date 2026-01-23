@@ -2,7 +2,7 @@ package org.apache.duckdb.sink;
 
 import com.cdc.duckdb.mp.entity.BaseEntity;
 import com.cdc.duckdb.mp.mapper.BaseMapperDuckdb;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
@@ -55,7 +55,7 @@ public class TableRecordBuffer {
         tableEntitiesMapping.forEach((tb, record) -> record.flush());
     }
 
-    public synchronized void ddl(String duckdbTbName, RecordDto recordDto) throws JsonProcessingException {
+    public synchronized void ddlAlter(String duckdbTbName, JsonNode historyRecord) {
         flush();
 
         TableChangeRecorder tableChangeRecorder = tableEntitiesMapping.get(duckdbTbName);
@@ -64,6 +64,6 @@ public class TableRecordBuffer {
             return;
         }
 
-        tableChangeRecorder.ddl(recordDto);
+        tableChangeRecorder.ddlAlter(historyRecord);
     }
 }
