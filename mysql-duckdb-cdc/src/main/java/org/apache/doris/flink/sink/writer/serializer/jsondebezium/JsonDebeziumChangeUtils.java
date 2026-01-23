@@ -65,17 +65,17 @@ public class JsonDebeziumChangeUtils {
                 : null;
     }
 
-    public static String buildDorisTypeName(
+    public static String buildDuckdbTypeName(
             SourceConnector sourceConnector, String dataType, Integer length, Integer scale) {
-        String dorisTypeName;
+        String duckdbTypeName;
         switch (sourceConnector) {
             case MYSQL:
-                dorisTypeName = MysqlType.toDorisType(dataType, length, scale);
+                duckdbTypeName = MysqlType.toDuckdbType(dataType, length, scale);
                 break;
             default:
                 String errMsg = sourceConnector + " not support " + dataType + " schema change.";
                 throw new UnsupportedOperationException(errMsg);
         }
-        return dorisTypeName;
+        return duckdbTypeName;
     }
 }

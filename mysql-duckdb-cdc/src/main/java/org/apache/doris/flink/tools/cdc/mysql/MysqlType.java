@@ -17,14 +17,10 @@
 
 package org.apache.doris.flink.tools.cdc.mysql;
 
-import org.apache.doris.flink.catalog.doris.DorisType;
 import org.apache.doris.flink.tools.cdc.DuckdbType;
-import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.Preconditions;
 
 import java.math.BigDecimal;
-
-import static org.apache.doris.flink.catalog.DorisTypeMapper.MAX_SUPPORTED_DATE_TIME_PRECISION;
 
 public class MysqlType {
 
@@ -97,126 +93,6 @@ public class MysqlType {
     private static final String JSON = "JSON";
     private static final String ENUM = "ENUM";
     private static final String SET = "SET";
-
-    public static String toDorisType(String type, Integer length, Integer scale) {
-        switch (type.toUpperCase()) {
-            case BIT:
-            case BOOLEAN:
-            case BOOL:
-                return DorisType.BOOLEAN;
-            case TINYINT:
-                return DorisType.TINYINT;
-            case TINYINT_UNSIGNED:
-            case TINYINT_UNSIGNED_ZEROFILL:
-            case SMALLINT:
-                return DorisType.SMALLINT;
-            case SMALLINT_UNSIGNED:
-            case SMALLINT_UNSIGNED_ZEROFILL:
-            case INT:
-            case INTEGER:
-            case MEDIUMINT:
-            case YEAR:
-                return DorisType.INT;
-            case INT_UNSIGNED:
-            case INT_UNSIGNED_ZEROFILL:
-            case INTEGER_UNSIGNED:
-            case INTEGER_UNSIGNED_ZEROFILL:
-            case MEDIUMINT_UNSIGNED:
-            case MEDIUMINT_UNSIGNED_ZEROFILL:
-            case BIGINT:
-                return DorisType.BIGINT;
-            case BIGINT_UNSIGNED:
-            case BIGINT_UNSIGNED_ZEROFILL:
-                return DorisType.LARGEINT;
-            case FLOAT:
-            case FLOAT_UNSIGNED:
-            case FLOAT_UNSIGNED_ZEROFILL:
-                return DorisType.FLOAT;
-            case REAL:
-            case REAL_UNSIGNED:
-            case REAL_UNSIGNED_ZEROFILL:
-            case DOUBLE:
-            case DOUBLE_UNSIGNED:
-            case DOUBLE_UNSIGNED_ZEROFILL:
-            case DOUBLE_PRECISION:
-            case DOUBLE_PRECISION_UNSIGNED:
-            case DOUBLE_PRECISION_UNSIGNED_ZEROFILL:
-                return DorisType.DOUBLE;
-            case NUMERIC:
-            case NUMERIC_UNSIGNED:
-            case NUMERIC_UNSIGNED_ZEROFILL:
-            case FIXED:
-            case FIXED_UNSIGNED:
-            case FIXED_UNSIGNED_ZEROFILL:
-            case DECIMAL:
-            case DECIMAL_UNSIGNED:
-            case DECIMAL_UNSIGNED_ZEROFILL:
-                return length != null && length <= 38
-                        ? String.format(
-                                "%s(%s,%s)",
-                                DorisType.DECIMAL_V3,
-                                length,
-                                scale != null && scale >= 0 ? scale : 0)
-                        : DorisType.STRING;
-            case DATE:
-                return DorisType.DATE_V2;
-            case DATETIME:
-            case TIMESTAMP:
-                // default precision is 0
-                // see https://dev.mysql.com/doc/refman/8.0/en/date-and-time-type-syntax.html
-                if (length == null
-                        || length <= 0
-                        || length == ZERO_PRECISION_TIMESTAMP_COLUMN_SIZE) {
-                    return String.format("%s(%s)", DorisType.DATETIME_V2, 0);
-                } else if (length > ZERO_PRECISION_TIMESTAMP_COLUMN_SIZE + 1) {
-                    // Timestamp with a fraction of seconds.
-                    // For example, 2024-01-01 01:01:01.1
-                    // The decimal point will occupy 1 character.
-                    // Thus,the length of the timestamp is 21.
-                    return String.format(
-                            "%s(%s)",
-                            DorisType.DATETIME_V2,
-                            Math.min(
-                                    length - ZERO_PRECISION_TIMESTAMP_COLUMN_SIZE - 1,
-                                    MAX_SUPPORTED_DATE_TIME_PRECISION));
-                } else if (length <= TimestampType.MAX_PRECISION) {
-                    // For Debezium JSON data, the timestamp/datetime length ranges from 0 to 9.
-                    return String.format(
-                            "%s(%s)",
-                            DorisType.DATETIME_V2,
-                            Math.min(length, MAX_SUPPORTED_DATE_TIME_PRECISION));
-                } else {
-                    throw new UnsupportedOperationException(
-                            "Unsupported length: "
-                                    + length
-                                    + " for MySQL TIMESTAMP/DATETIME types");
-                }
-            case CHAR:
-            case VARCHAR:
-                Preconditions.checkNotNull(length);
-                return length * 3 > 65533
-                        ? DorisType.STRING
-                        : String.format("%s(%s)", DorisType.VARCHAR, length * 3);
-            case TINYTEXT:
-            case TEXT:
-            case MEDIUMTEXT:
-            case LONGTEXT:
-            case ENUM:
-            case TIME:
-            case TINYBLOB:
-            case BLOB:
-            case MEDIUMBLOB:
-            case LONGBLOB:
-            case BINARY:
-            case VARBINARY:
-            case SET:
-                return DorisType.STRING;
-            case JSON:
-                return DorisType.JSONB;
-            default:
-                throw new UnsupportedOperationException("Unsupported MySQL Type: " + type);
-        }
-    }
 
     // ---------------------- 新增 toDuckdbType 方法 ----------------------
     /**

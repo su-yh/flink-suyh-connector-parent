@@ -256,7 +256,7 @@ public class SQLParserSchemaManager implements Serializable {
                 scale = Integer.parseInt(argumentsStringList.get(1));
             }
         }
-        return JsonDebeziumChangeUtils.buildDorisTypeName(
+        return JsonDebeziumChangeUtils.buildDuckdbTypeName(
                 sourceConnector, dataType + typeModifier, length, scale);
     }
 
