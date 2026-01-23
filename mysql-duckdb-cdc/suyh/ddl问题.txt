@@ -1,0 +1,10 @@
+
+
+
+doris 原生只支持有限的ddl
+DROP COLUMN
+ADD COLUMN
+CHANGE COLUMN
+RENAME COLUMN (MySQL 8.0 语法)
+
+
