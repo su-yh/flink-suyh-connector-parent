@@ -119,6 +119,7 @@ public class SQLParserSchemaChange extends JsonDebeziumSchemaChange {
         //         JsonDebeziumChangeUtils.getDorisTableIdentifier(record, dorisOptions, tableMapping);
         // JsonNode historyRecord = extractHistoryRecord(record);
         String ddl = extractJsonNode(historyRecord, "ddl");
+        LOG.info("source ALTER ddl: {}", ddl);
         ddl = ddl.replace("`", "\"");
         // extractSourceConnector(record);  // suyh - 不需要了，这里是提取源数据库是什么数据库，我们这里只处理mysql -> duckdb
         return sqlParserSchemaManager.parseAlterDDLs(SourceConnector.MYSQL, ddl, duckdbTableName);

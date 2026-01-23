@@ -2,6 +2,11 @@ package org.apache.duckdb.sink;
 
 import com.cdc.duckdb.component.DuckdbMapperManagerComponent;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.NullNode;
+import net.sf.jsqlparser.JSQLParserException;
+import net.sf.jsqlparser.parser.CCJSqlParserUtil;
+import net.sf.jsqlparser.statement.Statement;
+import net.sf.jsqlparser.statement.truncate.Truncate;
 import org.apache.doris.flink.sink.writer.EventType;
 import org.apache.doris.flink.sink.writer.serializer.jsondebezium.JsonDebeziumSchemaChange;
 import org.apache.flink.api.connector.sink2.StatefulSink;
@@ -34,9 +39,6 @@ public class DuckDBWriter implements
 
     @Override
     public void write(RecordDto recordDto, Context context) throws IOException, InterruptedException {
-        LOG.debug("接收到数据 (准备写入缓存): {}", recordDto);
-        LOG.debug("接收到数据 (准备写入缓存)，suyh - database: {}, table: {}",
-                recordDto.getSource().getDb(), recordDto.getSource().getTable());
         String op = recordDto.getOperation();
         if (!StringUtils.hasText(op)) {
             // 参考：org.apache.doris.flink.sink.writer.serializer.JsonDebeziumSchemaSerializer.serialize 的判断
@@ -51,11 +53,29 @@ public class DuckDBWriter implements
             JsonNode historyRecord = JsonUtils.deserializeToJsonNode(historyRecordJson);
             EventType eventType = JsonDebeziumSchemaChange.extractEventType(historyRecord);
             if (eventType == null) {
-                LOG.warn("Failed to parse eventType. historyRecord={}", historyRecordJson);
-                return;
-            }
+                JsonNode ddlNode = historyRecord.get("ddl");
+                if (ddlNode == null || ddlNode instanceof NullNode) {
+                    LOG.warn("Failed to parse ddl, ddl json node is empty. historyRecord={}", historyRecordJson);
+                    return;
+                }
 
-            if (eventType.equals(EventType.CREATE)) {
+                String ddlText = ddlNode.asText();
+                if (!StringUtils.hasText(ddlText)) {
+                    LOG.warn("Failed to parse ddl, ddl text is empty. historyRecord={}", historyRecordJson);
+                    return;
+                }
+                try {
+                    Statement statement = CCJSqlParserUtil.parse(ddlText);
+                    if (!(statement instanceof Truncate)) {
+                        LOG.warn("Unsupported ddl operations, ddl={}", ddlText);
+                        return;
+                    }
+
+                    duckdbMapperManagerComponent.ddlTruncate(recordDto.getSource().getTable());
+                } catch (JSQLParserException e) {
+                    LOG.warn("Failed to parse DDL SQL, SQL={}", ddlText, e);
+                }
+            } else if (eventType.equals(EventType.CREATE)) {
                 LOG.info("IGNORE CREATE TABLE, table name: {}", recordDto.getSource().getTable());
             } else if (eventType.equals(EventType.ALTER)) {
                 duckdbMapperManagerComponent.ddlAlter(recordDto.getSource().getTable(), historyRecord);

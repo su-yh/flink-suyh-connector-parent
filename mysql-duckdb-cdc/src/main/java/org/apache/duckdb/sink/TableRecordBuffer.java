@@ -66,4 +66,18 @@ public class TableRecordBuffer {
 
         tableChangeRecorder.ddlAlter(historyRecord);
     }
+
+    public synchronized void ddlTruncate(String duckdbTbName) {
+        flush();
+
+        TableChangeRecorder tableChangeRecorder = tableEntitiesMapping.get(duckdbTbName);
+        if (tableChangeRecorder == null) {
+            log.error("CANNOT FOUND duckdb table: {}", duckdbTbName);
+            return;
+        }
+
+        tableChangeRecorder.ddlTruncate();
+    }
+
+
 }

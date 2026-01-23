@@ -98,6 +98,12 @@ public class CdcConcurrentThreads {
         restoreBuffer(tableRecordBuffer);
     }
 
+    public void ddlTruncate(String duckdbTbName) {
+        TableRecordBuffer tableRecordBuffer = takeBuffer();
+        tableRecordBuffer.ddlTruncate(duckdbTbName);
+        restoreBuffer(tableRecordBuffer);
+    }
+
     private TableRecordBuffer takeBuffer() {
         int count = 3;
         for (int i = 0; i < count; i++) {

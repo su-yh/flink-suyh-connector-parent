@@ -94,7 +94,13 @@ public class TableChangeRecorder {
         }
 
         for (String ddl : ddlList) {
+            log.info("executeDdlSql: {}", ddl);
             baseMapperDuckdb.executeDdlSql(ddl);
         }
+    }
+
+    public void ddlTruncate() {
+        log.info("truncateTable, table name: {}", duckdbTableName);
+        baseMapperDuckdb.truncateTable();
     }
 }
