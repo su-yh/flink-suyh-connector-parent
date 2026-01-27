@@ -1,10 +1,19 @@
 
 
 
-doris 原生只支持有限的ddl
-DROP COLUMN
-ADD COLUMN
-CHANGE COLUMN
-RENAME COLUMN (MySQL 8.0 语法)
+支持的DDL：
+    DROP COLUMN
+    ADD COLUMN
+    CHANGE COLUMN
+    MODIFY COLUMN
+    RENAME COLUMN -- mysql 8.0 语法
+    TRUNCATE TABLE
+不支持的DDL 上面没列出来的都不支持，比如：
+    CREATE TABLE （建表只在启动时初始化阶段，在运行过程中忽略）
+    DROP TABLE
+    INDEX （索引）
+    RENAME TABLE （修改表名）   如果从一个未知表名，修改为一个被识别的 表名，那么它后续的DML 将会被监听。不过由于没有支持 CREATE TABLE，这里只会输出告警，不会有错误影响。
 
+如果需要支持，需要自己实现，我看原生的doris 对 MODIRY COLUMN 和 TRUNCATE TABLE 都没有支持。
+TRUNCATE TABLE 可能他们觉得这是危险操作，我们这边也可以看一下需不需要支持这个SQL
 
